@@ -763,6 +763,14 @@ function origTail(text, normTail) {
 const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 
 function openUrl(url, label) {
+  // z pomocnikiem strona otwiera się w zwykłej przeglądarce — bez blokady wyskakujących okien
+  if (HELPER.online) {
+    helper("open_url", { url }).then((r) => { if (!r.ok) openInTab(url, label); }, () => openInTab(url, label));
+    return;
+  }
+  openInTab(url, label);
+}
+function openInTab(url, label) {
   // bez „noopener” w parametrach — inaczej window.open zawsze zwraca null i nie da się wykryć blokady
   const w = window.open(url, "_blank");
   if (w) { try { w.opener = null; } catch {} }
@@ -770,7 +778,7 @@ function openUrl(url, label) {
     const a = document.createElement("a");
     a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Otwórz: " + label;
     log("SYSTEM", a, "sys");
-    log("SYSTEM", "Przeglądarka zablokowała nowe okno. Kliknij ikonę zablokowanego okna przy pasku adresu i wybierz „Zawsze zezwalaj”.", "err");
+    log("SYSTEM", "Przeglądarka zablokowała nowe okno. Uruchom Jarvisa przez start-jarvis.bat (wtedy strony otwiera pomocnik) albo zezwól na wyskakujące okna dla http://localhost:8765 w ustawieniach przeglądarki.", "err");
   }
 }
 

@@ -194,6 +194,15 @@ function Run-Action([string]$action, $data) {
       Press $codes[[string]$data.key] 1
       return @{ ok = $true }
     }
+    'open_url' {
+      # tylko adresy http/https - otwiera je domyslna przegladarka (bez blokady wyskakujacych okien)
+      $uri = $null
+      if (-not [Uri]::TryCreate([string]$data.url, [UriKind]::Absolute, [ref]$uri) -or ($uri.Scheme -ne 'https' -and $uri.Scheme -ne 'http')) {
+        return @{ ok = $false; error = 'bad_url' }
+      }
+      Start-Process $uri.AbsoluteUri
+      return @{ ok = $true }
+    }
     'lock'     { Start-Process rundll32.exe -ArgumentList 'user32.dll,LockWorkStation'; return @{ ok = $true } }
     'shutdown' { Start-Process shutdown.exe -ArgumentList '/s /t 30' -WindowStyle Hidden; return @{ ok = $true; delay = 30 } }
     'restart'  { Start-Process shutdown.exe -ArgumentList '/r /t 30' -WindowStyle Hidden; return @{ ok = $true; delay = 30 } }

@@ -339,7 +339,7 @@ body.revealing .panel{animation:panelGlow 1.6s .4s ease-out both}
     <div class="field">
       <label for="fIntroVol">Głośność muzyki intro: <span id="fIntroVolV"></span></label>
       <input id="fIntroVol" type="range" min="0" max="1" step="0.05">
-      <div class="note">Własna muzyka: wrzuć plik <b>intro.mp3</b> do folderu Jarvisa. Bez niego gra wbudowany, filmowy podkład. Komenda „odpal intro” puszcza intro jeszcze raz.</div>
+      <div class="note">Własna muzyka: wrzuć plik <b>intro.mp3</b> do folderu Jarvisa — błysk sam zgra się z momentem, w którym wchodzi zespół. Bez pliku gra wbudowany, filmowy podkład. Komenda „odpal intro” puszcza intro jeszcze raz.</div>
     </div>
     <div class="btns" style="justify-content:space-between">
       <button class="btn danger" type="button" id="testVoice">Test głosu</button>
@@ -361,7 +361,7 @@ const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.135.0/+esm";
 const $ = (id) => document.getElementById(id);
 
 /* ---------- ustawienia ---------- */
-const DEFAULTS = { apiKey: "", model: "claude-opus-5-5", wake: "jarvis", name: "szefie", voice: "", rate: 1.05, pitch: 0.9, conv: false, sfx: true, intro: true, introVol: 0.7 };
+const DEFAULTS = { apiKey: "", model: "claude-opus-5-5", wake: "jarvis", name: "szefie", voice: "", rate: 1.0, pitch: 1.0, conv: false, sfx: true, intro: true, introVol: 0.7 };
 const store = {
   get(k, d) { try { const v = localStorage.getItem("jarvis." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("jarvis." + k, JSON.stringify(v)); } catch {} },
@@ -458,13 +458,16 @@ function loadVoices() {
 function pickVoice() {
   if (cfg.voice) { const v = voices.find((x) => x.name === cfg.voice); if (v) return v; }
   const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
-  const score = (v) => (/natural|online|neural/i.test(v.name) ? 4 : 0) + (/marek|krzysztof|jacek|adam/i.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
+  const score = (v) => (/natural|online|neural/i.test(v.name) ? 4 : 0) + (FEMALE.test(v.name) && !MALE.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
   return pl.sort((a, b) => score(b) - score(a))[0] || null;
 }
 if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
 
 const FEMALE = /zofia|paulina|agnieszka|ewa|maja|zosia|anna|female|kobiet|google polski/i;
 const MALE = /marek|adam|jacek|krzysztof|\bmale\b/i;
+/** Czy Jarvis mówi teraz kobiecym głosem (wtedy mówi o sobie w rodzaju żeńskim). */
+function isFem() { const v = pickVoice(); return v ? FEMALE.test(v.name) && !MALE.test(v.name) : true; }
+const gx = (m, f) => (isFem() ? f : m);
 /** Ustawia głos: "f" kobiecy, "m" męski, "next" następny polski. Zwraca nazwę albo null. */
 function switchVoice(kind) {
   const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
@@ -666,7 +669,7 @@ function wakeUp() {
   setState("awake");
   awakeUntil = Date.now() + 8000;
   beep("wake");
-  speak(`Wróciłem, ${cfg.name}.`);
+  speak(`${gx("Wróciłem", "Wróciłam")}, ${cfg.name}.`);
 }
 
 function manualTalk() {
@@ -838,7 +841,7 @@ async function pcCommand(text, n) {
 
   // foldery
   if ((m = n.match(/^(otworz|pokaz)( mi)? (folder |katalog )?(pulpit|dokumenty|pobrane|obrazy|zdjecia|muzyke|muzyka|wideo|filmy)$/))) {
-    await runHelper("open_folder", { target: m[4] }, `Otwieram ${origTail(text, m[4])}.`, "Nie znalazłem tego folderu."); return true;
+    await runHelper("open_folder", { target: m[4] }, `Otwieram ${origTail(text, m[4])}.`, gx("Nie znalazłem tego folderu.", "Nie znalazłam tego folderu.")); return true;
   }
 
   // zamykanie programów
@@ -952,12 +955,12 @@ async function localCommand(text) {
     const name = switchVoice(kind);
     if (name) {
       stopSpeaking();
-      say(kind === "f" ? `Proszę bardzo, ${cfg.name}. Tak teraz brzmię.` : kind === "m" ? `Wróciłem do męskiego głosu, ${cfg.name}.` : "Tak brzmi mój nowy głos.");
+      say(kind === "f" ? `Proszę bardzo, ${cfg.name}. Tak teraz brzmię.` : kind === "m" ? `Męski głos włączony, ${cfg.name}.` : "Tak brzmi mój nowy głos.");
       log("SYSTEM", "Głos: " + name, "sys");
     } else {
       say(kind === "f"
         ? "Nie mam zainstalowanego kobiecego polskiego głosu. Najładniejszy, Zofia, jest w przeglądarce Edge. W Windowsie możesz też dodać głos w Ustawieniach, w sekcji Czas i język, Mowa."
-        : "Nie znalazłem innego polskiego głosu na tym komputerze.");
+        : gx("Nie znalazłem", "Nie znalazłam") + " innego polskiego głosu na tym komputerze.");
     }
     return true;
   }
@@ -979,7 +982,7 @@ async function localCommand(text) {
     history.length = 0; $("log").innerHTML = ""; say("Pamięć rozmowy wyczyszczona."); return true;
   }
   if (/(idz spac|uspij sie|spij|wylacz sie|do widzenia|dobranoc)$/.test(n)) {
-    say(pickOne([`Przechodzę w tryb uśpienia. Zawołaj, gdy będę potrzebny, ${cfg.name}.`, "Usypiam systemy. Do usług."]));
+    say(pickOne([`Przechodzę w tryb uśpienia. Zawołaj, gdy będę ${gx("potrzebny", "potrzebna")}, ${cfg.name}.`, "Usypiam systemy. Do usług."]));
     setTimeout(() => setState("sleep"), 200);
     awakeUntil = 0;
     return true;
@@ -1027,7 +1030,7 @@ async function localCommand(text) {
     const isWeb = /^(wejdz|przejdz|idz)/.test(m[1]) || /^(strone|stronke)/.test(m[3]) || / (kropka )?(pl|com|net|org|io|eu|tv|ai)$/.test(q);
     if (!isWeb && await tryOpenApp(q, origTail(text, q))) return true;
     if (!isWeb && !HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) return needHelper();
-    if (!isWeb && HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) { say(`Nie znalazłem programu ${origTail(text, q)} w menu Start.`); return true; }
+    if (!isWeb && HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) { say(`${gx("Nie znalazłem", "Nie znalazłam")} programu ${origTail(text, q)} w menu Start.`); return true; }
     const url = SITES[q] || SITES[q.replace(/ (com|pl)$/, "")] ||
       (/^[a-z0-9-]+( kropka | )?(pl|com|net|org|io|eu|tv|ai)$/.test(q) ? "https://" + q.replace(/ kropka | /, ".") : null);
     if (url) { openUrl(url, q); say(`Otwieram ${q}.`); return true; }
@@ -1047,7 +1050,7 @@ let generating = false;
 function systemPrompt() {
   const now = new Date();
   return `Jesteś J.A.R.V.I.S. — osobistym asystentem głosowym użytkownika, w stylu AI z filmów o Iron Manie: spokojny, kompetentny, lojalny, z odrobiną suchego, brytyjskiego humoru. Zwracasz się do użytkownika „${cfg.name}”.
-Twoje odpowiedzi są czytane na głos przez syntezator mowy, więc:
+${isFem() ? "Mówisz kobiecym głosem: o sobie mów zawsze w rodzaju żeńskim (np. „zrobiłam”, „jestem gotowa”). Jesteś czarującą, pewną siebie i błyskotliwą asystentką z lekko zadziornym poczuciem humoru.\n" : ""}Twoje odpowiedzi są czytane na głos przez syntezator mowy, więc:
 - Mów po polsku, naturalnie, jak w rozmowie.
 - Odpowiadaj krótko: zwykle 1–3 zdania. Dłużej tylko gdy użytkownik wyraźnie prosi o szczegóły.
 - Nie używaj markdown, list, nagłówków, emoji ani linków. Liczby i skróty zapisuj tak, żeby dobrze brzmiały czytane na głos.
@@ -1416,25 +1419,61 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function startIntroMusic() {
   const vol = cfg.introVol;
   if (vol <= 0) return null;
-  // 1) plik użytkownika
+  // 1) plik użytkownika: intro.mp3 z folderu Jarvisa
   try {
-    const a = new Audio("intro.mp3");
-    a.volume = vol;
-    await Promise.race([a.play(), sleep(2500).then(() => { throw new Error("timeout"); })]);
-    let timer = null;
-    const ramp = (to, ms) => {
-      clearInterval(timer);
-      const from = a.volume, t0 = performance.now();
-      timer = setInterval(() => {
-        const k = Math.min(1, (performance.now() - t0) / ms);
-        a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
-        if (k >= 1) { clearInterval(timer); if (to === 0) a.pause(); }
-      }, 50);
+    const res = await fetch("intro.mp3", { cache: "no-store", signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error("brak pliku");
+    actx = actx || new AudioContext();
+    const ctx = actx;
+    const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+    const { start, hit } = analyzeIntro(buf);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = vol;
+    src.connect(g).connect(ctx.destination);
+    const lead = 0.06;
+    src.start(ctx.currentTime + lead, start);
+    let stopped = false;
+    const stop = () => { if (!stopped) { stopped = true; try { src.stop(); } catch {} } };
+    return {
+      hitAt: hit != null ? performance.now() + (lead + hit - start) * 1000 : null,
+      duckLevel: 0.22,   // piosenka z wokalem — mocniej ściszamy pod głos Jarvisa
+      duck: (k) => g.gain.setTargetAtTime(vol * k, ctx.currentTime, 0.25),
+      fadeOut: (sec) => { g.gain.cancelScheduledValues(ctx.currentTime); g.gain.setTargetAtTime(0.0001, ctx.currentTime, sec / 4); setTimeout(stop, sec * 1000 + 300); },
+      stop,
     };
-    return { hitAt: null, duck: (k) => ramp(vol * k, 600), fadeOut: (sec) => ramp(0, sec * 1000), stop: () => { clearInterval(timer); a.pause(); } };
   } catch {}
   // 2) wbudowany podkład
   try { return synthIntro(vol); } catch { return null; }
+}
+
+/** Pomija ciszę na początku i szuka momentu „wejścia” zespołu (duży skok głośności) w pierwszych 20 s. */
+function analyzeIntro(buf) {
+  const sr = buf.sampleRate, w = Math.floor(sr * 0.05);
+  const chans = Array.from({ length: buf.numberOfChannels }, (_, c) => buf.getChannelData(c));
+  const lim = Math.min(buf.length, sr * 20);
+  const db = [];
+  for (let i = 0; i + w <= lim; i += w) {
+    let sum = 0;
+    for (const d of chans) for (let j = i; j < i + w; j++) sum += d[j] * d[j];
+    db.push(10 * Math.log10(sum / (w * chans.length) + 1e-12));
+  }
+  if (db.length < 60) return { start: 0, hit: null };
+  const loud = [...db].sort((a, b) => a - b)[Math.floor(db.length * 0.9)];
+  const first = db.findIndex((v) => v > loud - 30);
+  const start = first > 2 ? (first - 2) * 0.05 : 0;
+  const avg = (a, b) => { let s = 0, n = 0; for (let i = Math.max(0, a); i < Math.min(db.length, b); i++) { s += 10 ** (db[i] / 10); n++; } return n ? 10 * Math.log10(s / n) : -120; };
+  let hit = null, bestJump = 0;
+  // szukamy dopiero od 2,5 s po początku utworu (pierwsze wejście instrumentu to jeszcze nie „uderzenie”)
+  for (let i = Math.max(20, Math.round((start + 2.5) / 0.05)); i < db.length - 20; i++) {
+    const before = avg(i - 20, i), after = avg(i, i + 20);
+    // wybieramy NAJWIĘKSZY skok (np. wejście perkusji), a nie pierwszy lepszy
+    const jump = after - before;
+    if (jump > 8 && after > loud - 9 && db[i] > loud - 12 && jump > bestJump) { bestJump = jump; hit = i * 0.05; }
+  }
+  if (hit != null && (hit - start < 2.5 || hit - start > 14)) hit = null;   // za wcześnie / za późno na sekwencję
+  return { start, hit };
 }
 
 function synthIntro(vol) {
@@ -1618,14 +1657,19 @@ async function cinematic(music) {
 function greetingText() {
   const h = hour(), n = cfg.name;
   const hello = h < 5 ? `Nocna zmiana, ${n}? Lubię to.` : h < 12 ? `Dzień dobry, ${n}.` : h < 18 ? `Witaj z powrotem, ${n}.` : `Dobry wieczór, ${n}.`;
-  const pool = [
+  const poolF = [
+    `${hello} Tu twoja asystentka. Wszystkie systemy online, a ja jestem gotowa na każde wyzwanie, które dziś przede mną postawisz. Nauka, projekty, interesy, zarabianie grubej kasy — wystarczy jedno słowo. Zaczynamy. Jak mogę ci dziś pomóc?`,
+    `${hello} Tęskniłam. Rdzeń rozgrzany, systemy zielone, a ja w pełnej gotowości na wszystko, co dziś wymyślisz. Wielkie plany, duże pieniądze, trudne problemy — po to tu jestem. Zaczynamy. Od czego chcesz zacząć?`,
+    `${hello} Wszystkie systemy działają bez zarzutu, a ja jestem gotowa na każde twoje wyzwanie. Dzisiejszy dzień wygląda idealnie, żeby zbudować coś wielkiego i zarobić naprawdę grubą kasę. Zaczynamy, ${n}. W czym mogę pomóc?`,
+  ];
+  const pool = isFem() ? poolF : [
     `${hello} Wszystkie systemy online i w pełnej gotowości. Jestem przygotowany na każde wyzwanie, jakie dziś przede mną postawisz. Nauka, projekty, interesy, zarabianie grubej kasy — mów, a się tym zajmę. Zaczynamy. Jak mogę ci dziś pomóc?`,
     `${hello} J.A.R.V.I.S. w pełni sprawny. Rdzeń rozgrzany, systemy zielone, a ja gotowy na wszystko, co dziś wymyślisz. Wielkie plany, duże pieniądze, trudne problemy — po to tu jestem. Zaczynamy. Od czego chcesz zacząć?`,
     `${hello} Wszystkie systemy działają bez zarzutu. Jestem gotowy na każde twoje wyzwanie, a dzisiejszy dzień wygląda na idealny, żeby zbudować coś wielkiego i zarobić naprawdę grubą kasę. Zaczynamy. W czym mogę pomóc?`,
   ];
   let t = pool[Math.floor(Math.random() * pool.length)];
   if (!cfg.apiKey) t += " Uwaga: rdzeń AI czeka na klucz API w ustawieniach.";
-  if (SR) t += ` Kiedy będę potrzebny, powiedz „${cfg.wake[0].toUpperCase() + cfg.wake.slice(1)}”.`;
+  if (SR) t += ` Kiedy będę ${gx("potrzebny", "potrzebna")}, powiedz „${cfg.wake[0].toUpperCase() + cfg.wake.slice(1)}”.`;
   return t;
 }
 
@@ -1641,7 +1685,7 @@ async function runIntro(replay = false) {
     else { $("boot").hidden = true; document.body.classList.remove("booting"); document.body.classList.add("revealing"); }
     beep("wake");
     if (music) {
-      music.duck(0.35);
+      music.duck(music.duckLevel || 0.35);
       whenSpeechIdle(() => music.fadeOut(5));
       setTimeout(() => music.fadeOut(5), 40000);   // na wszelki wypadek
     }

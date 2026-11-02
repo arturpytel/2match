@@ -12,6 +12,10 @@ Za pierwszym razem zezwól na mikrofon i na wyskakujące okna (to dla komend „
 
 **macOS / Linux:** `./start-jarvis.sh` (potrzebny Python 3 i Chrome albo Edge).
 
+**Ikonka na pulpicie:** kliknij raz `utworz-skrot.bat`. Na pulpicie i w menu Start pojawi się „Jarvis” z ikonką
+(skrót z menu Start można przypiąć do paska zadań: prawy przycisk → „Przypnij do paska zadań”).
+Ten sam plik pyta też, czy Jarvis ma się włączać razem z Windowsem.
+
 Potem kliknij **Aktywuj system** i w **Ustawieniach** wklej klucz API Anthropic
 (założysz go na https://platform.claude.com/settings/keys; płacisz za zużycie, model Haiku jest najtańszy).
 
@@ -46,7 +50,6 @@ Zamiast mówić możesz nacisnąć **spację** albo wpisać polecenie na dole.
 
 - Działa w **Chrome** i **Edge** (inne przeglądarki nie mają rozpoznawania mowy). Najlepsze polskie głosy ma Edge („Microsoft Marek Online (Natural)”).
 - Używaj **słuchawek**, wtedy Jarvis nie słyszy sam siebie. Panel ma ochronę przed echem, ale słuchawki działają pewniej.
-- **Autostart z Windowsem:** Win+R → `shell:startup` → wklej tam skrót do `start-jarvis.bat`.
 - Klucz API zapisuje się tylko w tej przeglądarce na Twoim komputerze. Nie wrzucaj panelu z kluczem na publiczny serwer.
 
 ## Pomocnik PC (`server.ps1`, Windows)

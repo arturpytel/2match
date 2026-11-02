@@ -26,6 +26,13 @@ Potem kliknij **Aktywuj system** i w **Ustawieniach** wklej klucz API Anthropic
 | „puść lofi na YouTube” | szuka na YouTube |
 | „minutnik 5 minut” | odlicza i przypomina głosem |
 | „pogoda”, „status systemu”, „pełny ekran” | jasne |
+| „uruchom Discorda”, „włącz Steam”, „otwórz notatnik” | uruchamia program z menu Start *(pomocnik)* |
+| „zamknij Spotify” | zamyka program *(pomocnik)* |
+| „głośniej”, „ciszej”, „głośność 30”, „wycisz dźwięk” | głośność komputera *(pomocnik)* |
+| „pauza”, „następna piosenka”, „poprzednia” | steruje muzyką i filmami *(pomocnik)* |
+| „otwórz pobrane / pulpit / dokumenty” | otwiera folder *(pomocnik)* |
+| „zablokuj komputer” | blokuje ekran *(pomocnik)* |
+| „wyłącz / zrestartuj / uśpij komputer” | pyta „na pewno?”, po „tak” robi to za 30 s; „anuluj wyłączenie” przerywa *(pomocnik)* |
 | „stop” | przerywa mówienie |
 | „nowa rozmowa” | czyści pamięć rozmowy |
 | „idź spać” | usypia, aż znów usłyszy „Jarvis” |
@@ -42,7 +49,16 @@ Zamiast mówić możesz nacisnąć **spację** albo wpisać polecenie na dole.
 - **Autostart z Windowsem:** Win+R → `shell:startup` → wklej tam skrót do `start-jarvis.bat`.
 - Klucz API zapisuje się tylko w tej przeglądarce na Twoim komputerze. Nie wrzucaj panelu z kluczem na publiczny serwer.
 
-## Ograniczenia
+## Pomocnik PC (`server.ps1`, Windows)
 
-Panel działa w przeglądarce, więc nie może sam uruchamiać programów, zmieniać głośności ani wyłączać komputera.
-Do tego potrzebny jest mały program-pomocnik na komputerze, który można dobudować jako kolejny krok.
+Uruchamia się sam razem z `start-jarvis.bat`, w tle, bez okna. Serwuje panel i wykonuje komendy oznaczone *(pomocnik)*.
+W panelu w „Status systemu” widać wtedy **Pomocnik PC: online** i prawdziwe obciążenie procesora, RAM i dysku.
+
+Bezpieczeństwo:
+- działa tylko na Twoim komputerze (`localhost`), z internetu nikt się do niego nie połączy;
+- każde polecenie musi mieć losowy klucz, który pomocnik nadaje panelowi przy starcie, więc inne strony w przeglądarce nie wydadzą mu poleceń;
+- uruchamia tylko programy z menu Start i kilka narzędzi Windows, nigdy dowolnych komend;
+- wyłączenie i restart zawsze wymagają potwierdzenia „tak”.
+
+Po zmianie plików wystarczy znowu kliknąć `start-jarvis.bat`, a stara kopia pomocnika sama się zamknie.
+Na macOS i Linuksie pomocnika nie ma: działa sam panel.

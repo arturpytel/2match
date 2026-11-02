@@ -29,7 +29,7 @@ button,input,select{font:inherit;color:inherit}
 .muted{color:var(--muted)}
 
 /* ---------- layout ---------- */
-.app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:300px 1fr 340px;grid-template-rows:auto 1fr auto;gap:16px;padding:16px}
+.app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:300px 1fr 340px;grid-template-rows:auto minmax(0,1fr) auto;gap:16px;padding:16px}
 header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
 .brand{font-family:var(--head);font-weight:900;letter-spacing:.35em;font-size:1.25rem;color:var(--cyan);text-shadow:0 0 12px rgba(51,225,255,.6)}
 .brand small{display:block;font-family:var(--mono);font-weight:400;letter-spacing:.12em;font-size:.7rem;color:var(--muted);text-shadow:none;margin-top:2px}
@@ -42,6 +42,8 @@ header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-be
 .panel h2{margin:0 0 10px;font-family:var(--head);font-size:.72rem;font-weight:700;letter-spacing:.28em;color:var(--cyan);display:flex;align-items:center;gap:8px}
 .panel h2::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
 .col{display:flex;flex-direction:column;gap:16px;min-height:0}
+.left{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent}
+.left .panel{flex-shrink:0}
 
 .stat{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:6px 0;border-bottom:1px dashed rgba(51,225,255,.12);font-size:.95rem}
 .stat:last-child{border-bottom:0}
@@ -141,10 +143,12 @@ footer{grid-column:1/-1;display:flex;align-items:center;justify-content:space-be
     <section class="panel">
       <h2>STATUS SYSTEMU</h2>
       <div class="stat"><span class="k">Rdzeń AI</span><span class="v" id="sAi">—</span></div>
+      <div class="stat"><span class="k">Pomocnik PC</span><span class="v" id="sHelper"><span class="dot"></span>offline</span></div>
       <div class="stat"><span class="k">Mikrofon</span><span class="v" id="sMic"><span class="dot"></span>off</span></div>
       <div class="stat"><span class="k">Poziom audio</span><span class="v" id="sLvl">0%</span><span class="bar"><i id="bLvl"></i></span></div>
-      <div class="stat"><span class="k">Wątki CPU</span><span class="v" id="sCpu">—</span></div>
-      <div class="stat"><span class="k">Pamięć RAM</span><span class="v" id="sRam">—</span></div>
+      <div class="stat"><span class="k">Procesor</span><span class="v" id="sCpu">—</span><span class="bar" id="bCpuW" hidden><i id="bCpu"></i></span></div>
+      <div class="stat"><span class="k">Pamięć RAM</span><span class="v" id="sRam">—</span><span class="bar" id="bRamW" hidden><i id="bRam"></i></span></div>
+      <div class="stat" id="rDisk" hidden><span class="k">Dysk C:</span><span class="v" id="sDisk">—</span><span class="bar"><i id="bDisk"></i></span></div>
       <div class="stat"><span class="k">Bateria</span><span class="v" id="sBat">—</span><span class="bar"><i id="bBat"></i></span></div>
       <div class="stat"><span class="k">Sieć</span><span class="v" id="sNet">—</span></div>
       <div class="stat"><span class="k">Ekran</span><span class="v" id="sScr">—</span></div>
@@ -158,9 +162,11 @@ footer{grid-column:1/-1;display:flex;align-items:center;justify-content:space-be
         <li><b>„Jarvis”</b> — budzi mnie, potem mów</li>
         <li><b>„Jarvis, która godzina?”</b></li>
         <li><b>„otwórz YouTube / Gmail / Spotify…”</b></li>
-        <li><b>„wyszukaj …”</b> · <b>„puść … ”</b></li>
-        <li><b>„minutnik 5 minut”</b> · <b>„pogoda”</b></li>
-        <li><b>„status systemu”</b> · <b>„pełny ekran”</b></li>
+        <li><b>„uruchom Discorda”</b> · <b>„zamknij notatnik”</b></li>
+        <li><b>„głośniej”</b> · <b>„głośność 30”</b> · <b>„pauza”</b></li>
+        <li><b>„wyszukaj …”</b> · <b>„puść …”</b> · <b>„pogoda”</b></li>
+        <li><b>„minutnik 5 minut”</b> · <b>„status systemu”</b></li>
+        <li><b>„zablokuj komputer”</b> · <b>„wyłącz komputer”</b></li>
         <li><b>„stop”</b> · <b>„nowa rozmowa”</b> · <b>„idź spać”</b></li>
         <li>Wszystko inne → pytanie do Claude'a</li>
       </ul>
@@ -410,7 +416,7 @@ function isEcho(text) {
   // końcówka mojej własnej wypowiedzi, która wpadła do mikrofonu
   if (Date.now() - speechEndedAt > 3500 || !spokenRecently) return false;
   const words = norm(text).split(" ").filter((w) => w.length > 2);
-  if (!words.length) return false;
+  if (words.length < 2) return false;   // krótkie odpowiedzi typu „tak” / „nie” to nie echo
   const hit = words.filter((w) => spokenRecently.includes(w)).length;
   return hit / words.length >= 0.6;
 }
@@ -586,6 +592,154 @@ async function initMicMeter() {
 }
 
 /* =========================================================
+   POMOCNIK PC (server.ps1 na Windows)
+   Token wpisuje serwer przy starcie — bez niego żadna strona nie wyda poleceń komputerowi.
+   ========================================================= */
+const HELPER = { token: "__JARVIS_TOKEN__", online: false };
+
+async function helper(action, data = {}) {
+  const r = await fetch("/api/" + action, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Jarvis-Token": HELPER.token },
+    body: JSON.stringify(data),
+    signal: AbortSignal.timeout(20000),
+  });
+  return r.json();
+}
+async function initHelper() {
+  if (location.protocol === "file:" || HELPER.token.startsWith("__")) return;
+  try {
+    const r = await helper("ping");
+    HELPER.online = !!r.ok;
+    HELPER.host = r.host;
+  } catch {}
+  $("sHelper").innerHTML = HELPER.online ? `<span class="dot on"></span>${HELPER.host || "online"}` : '<span class="dot"></span>offline';
+  if (HELPER.online) { pollStats(); setInterval(pollStats, 4000); }
+}
+let statsBusy = false;
+async function pollStats() {
+  if (statsBusy || document.hidden) return;
+  statsBusy = true;
+  try {
+    const s = await helper("stats");
+    if (!s.ok) return;
+    sys.stats = s;
+    $("sCpu").textContent = `${s.cpu}% · ${plural(navigator.hardwareConcurrency || 0, "wątek", "wątki", "wątków")}`;
+    $("bCpuW").hidden = false; $("bCpu").style.width = s.cpu + "%";
+    $("sRam").textContent = `${s.ramUsed} / ${s.ramTotal} GB`;
+    $("bRamW").hidden = false; $("bRam").style.width = (s.ramUsed / s.ramTotal) * 100 + "%";
+    $("rDisk").hidden = false;
+    $("sDisk").textContent = `${s.diskFree} GB wolne`;
+    $("bDisk").style.width = ((s.diskTotal - s.diskFree) / s.diskTotal) * 100 + "%";
+  } catch {} finally { statsBusy = false; }
+}
+function needHelper() {
+  say(`Do tego potrzebny jest pomocnik, ${cfg.name}. Uruchom mnie przez plik start-jarvis.bat na Windowsie.`);
+  return true;
+}
+
+let pendingConfirm = null;   // { action, until }
+const POWER = {
+  shutdown: { ask: "wyłączyć komputer", done: "Wyłączam komputer za 30 sekund. Powiedz „anuluj wyłączenie”, jeśli zmienisz zdanie." },
+  restart: { ask: "zrestartować komputer", done: "Restart za 30 sekund. Powiedz „anuluj wyłączenie”, żeby przerwać." },
+  sleep: { ask: "uśpić komputer", done: "Usypiam komputer. Do zobaczenia." },
+};
+async function runHelper(action, data, okText, failText) {
+  if (!HELPER.online) return needHelper();
+  try {
+    const r = await helper(action, data);
+    if (r.ok) { if (okText) say(typeof okText === "function" ? okText(r) : okText); }
+    else say(typeof failText === "function" ? failText(r) : failText || "Nie udało się.");
+    return r;
+  } catch {
+    say("Pomocnik nie odpowiada. Uruchom ponownie start-jarvis.bat.");
+    return { ok: false };
+  }
+}
+
+/** Komendy sterujące komputerem. Zwraca true, jeśli obsłużone. */
+async function pcCommand(text, n) {
+  let m;
+  // potwierdzenie wyłączenia / restartu / uśpienia
+  if (pendingConfirm) {
+    const p = pendingConfirm; pendingConfirm = null;
+    if (Date.now() < p.until) {
+      if (/^(tak|potwierdzam|zgadza sie|tak jest|dawaj|wykonaj|na pewno|jasne)\b/.test(n)) {
+        await runHelper(p.action, {}, POWER[p.action].done);
+        return true;
+      }
+      if (/^(nie|anuluj|jednak nie|stop)\b/.test(n)) { say("Anulowane."); return true; }
+    }
+  }
+  if (/(anuluj|odwolaj|przerwij|zatrzymaj) (wylaczanie|wylaczenie|restart|zamykanie)/.test(n)) {
+    await runHelper("cancel_shutdown", {}, "Anulowane. Komputer zostaje włączony."); return true;
+  }
+  const power =
+    /(wylacz|zamknij|wylaczyc) (komputer|kompa|system|pc|laptopa?)/.test(n) ? "shutdown" :
+    /(zrestartuj|restartuj|uruchom ponownie|restart) ?(komputer|kompa|system|pc|komputera|laptopa?)/.test(n) ? "restart" :
+    /(uspij|usypiaj|uspic) (komputer|kompa|pc|laptopa?)/.test(n) ? "sleep" : null;
+  if (power) {
+    if (!HELPER.online) return needHelper();
+    pendingConfirm = { action: power, until: Date.now() + 15000 };
+    awakeUntil = Date.now() + 15000;
+    say(`Na pewno ${POWER[power].ask}? Powiedz „tak” albo „nie”.`);
+    return true;
+  }
+  if (/zablokuj (komputer|kompa|ekran|pc|laptopa?)/.test(n)) { await runHelper("lock", {}, "Blokuję komputer."); return true; }
+
+  // głośność
+  if ((m = n.match(/(glosnosc|dzwiek|glos) (na |do )?(\d{1,3})( procent)?$/))) {
+    const level = Math.min(100, +m[3]);
+    await runHelper("volume", { mode: "set", level }, `Głośność ${level} procent.`); return true;
+  }
+  if (/^(wycisz|wylacz) (dzwiek|komputer|wszystko|glosnosc)|^(odcisz|wlacz dzwiek|wycisz)$/.test(n)) {
+    await runHelper("volume", { mode: "mute" }, null); return true;
+  }
+  if (/(glosniej|podglos|poglosnij|zglosnij|wiecej glosu|daj glosniej)/.test(n)) {
+    const big = /(duzo|bardzo|mocno|o wiele)/.test(n);
+    await runHelper("volume", { mode: "up", steps: big ? 15 : 5 }, null); return true;
+  }
+  if (/(ciszej|scisz|przycisz|mniej glosu|zciszyc|scisz)/.test(n)) {
+    const big = /(duzo|bardzo|mocno|o wiele)/.test(n);
+    await runHelper("volume", { mode: "down", steps: big ? 15 : 5 }, null); return true;
+  }
+
+  // muzyka / filmy
+  if (/^(pauza|zapauzuj|wstrzymaj|zatrzymaj (muzyke|film|piosenke|odtwarzanie|filmik)|wznow|graj dalej|odpauzuj|play)$/.test(n)) {
+    await runHelper("media", { key: "playpause" }, null); return true;
+  }
+  if (/^(nastepna|nastepny|dalej|kolejna|przewin)( piosenka| piosenke| utwor| kawalek| numer)?$|(nastepna|kolejna) (piosenka|piosenke|utwor)/.test(n)) {
+    await runHelper("media", { key: "next" }, null); return true;
+  }
+  if (/^(poprzednia|poprzedni|cofnij)( piosenka| piosenke| utwor| kawalek)?$|poprzednia (piosenka|piosenke)/.test(n)) {
+    await runHelper("media", { key: "prev" }, null); return true;
+  }
+
+  // foldery
+  if ((m = n.match(/^(otworz|pokaz)( mi)? (folder |katalog )?(pulpit|dokumenty|pobrane|obrazy|zdjecia|muzyke|muzyka|wideo|filmy)$/))) {
+    await runHelper("open_folder", { target: m[4] }, `Otwieram ${origTail(text, m[4])}.`, "Nie znalazłem tego folderu."); return true;
+  }
+
+  // zamykanie programów
+  if ((m = n.match(/^(zamknij|ubij|wylacz) (program |aplikacje )?(.+)$/)) && !/^(sie|ten panel|jarvisa?)$|ekran|minutnik|timer/.test(m[3])) {
+    const name = origTail(text, m[3]);
+    await runHelper("close_app", { target: m[3] }, `Zamykam ${name}.`, (r) => r.error === "not_running" ? `${name[0].toUpperCase() + name.slice(1)} nie jest włączony.` : "Nie udało się.");
+    return true;
+  }
+  return false;
+}
+
+/** Próbuje uruchomić program na komputerze. Zwraca true, jeśli się udało. */
+async function tryOpenApp(target, label) {
+  if (!HELPER.online) return false;
+  try {
+    const r = await helper("open_app", { target });
+    if (r.ok) { say(`Uruchamiam ${r.name || label}.`); return true; }
+  } catch {}
+  return false;
+}
+
+/* =========================================================
    KOMENDY LOKALNE
    ========================================================= */
 const SITES = {
@@ -647,7 +801,10 @@ async function weather() {
 function systemReport() {
   const parts = [];
   parts.push(`Wszystkie systemy sprawne, ${cfg.name}.`);
-  if (navigator.hardwareConcurrency) parts.push(`Procesor ma ${plural(navigator.hardwareConcurrency, "wątek", "wątki", "wątków")}.`);
+  if (sys.stats) {
+    const s = sys.stats;
+    parts.push(`Procesor obciążony w ${s.cpu} procentach. Pamięć: ${String(s.ramUsed).replace(".", ",")} z ${String(s.ramTotal).replace(".", ",")} gigabajtów. Na dysku C zostało ${s.diskFree} gigabajtów.`);
+  } else if (navigator.hardwareConcurrency) parts.push(`Procesor ma ${plural(navigator.hardwareConcurrency, "wątek", "wątki", "wątków")}.`);
   if (sys.battery) parts.push(`Bateria ${Math.round(sys.battery.level * 100)} procent${sys.battery.charging ? ", ładuje się" : ""}.`);
   parts.push(navigator.onLine ? "Połączenie z siecią aktywne." : "Brak połączenia z siecią.");
   parts.push(cfg.apiKey ? "Rdzeń Claude podłączony." : "Rdzeń Claude odłączony — brak klucza API.");
@@ -659,7 +816,9 @@ async function localCommand(text) {
   const n = norm(text);
   let m;
 
-  if (/^(stop|cisza|przestan|wystarczy|dosc|anuluj)$/.test(n)) { stopSpeaking(); return true; }
+  if (pendingConfirm && await pcCommand(text, n)) return true;
+  if (/^(stop|cisza|przestan|wystarczy|dosc|anuluj|zamknij sie)$/.test(n)) { stopSpeaking(); return true; }
+  if (await pcCommand(text, n)) return true;
   if (/(ktora (jest )?(teraz )?godzina|jaka (jest )?godzina|podaj godzine)/.test(n)) {
     const d = new Date();
     say(`Jest ${d.getHours()}:${pad(d.getMinutes())}.`); return true;
@@ -669,6 +828,7 @@ async function localCommand(text) {
   }
   if (/(pelny ekran|pelnego ekranu|fullscreen)/.test(n)) {
     if (document.fullscreenElement) { document.exitFullscreen(); say("Wychodzę z pełnego ekranu."); }
+    else if (/(wylacz|wyjdz|zamknij)/.test(n)) say("Nie jestem w trybie pełnego ekranu.");
     else { document.documentElement.requestFullscreen().then(() => say("Pełny ekran."), () => say("Przeglądarka wymaga kliknięcia, żeby włączyć pełny ekran. Naciśnij F11.")); }
     return true;
   }
@@ -710,6 +870,7 @@ async function localCommand(text) {
   if ((m = n.match(/^(pusc|zagraj|wlacz|odtworz|pokaz)( mi)? (.+?)( na youtube| na yt| na jutubie)?$/)) && !/(pelny ekran|tryb)/.test(n)) {
     const q = m[3];
     const label = origTail(text, q + (m[4] || ""));
+    if (m[1] === "wlacz" && !m[4] && await tryOpenApp(q, label)) return true;
     const site = SITES[q];
     if (site) { openUrl(site, q); say(`Otwieram ${q}.`); return true; }
     if (q === "muzyke" || q === "muzyka" || q === "cos") { openUrl("https://www.youtube.com/results?search_query=" + encodeURIComponent("muzyka do pracy"), "YouTube"); say("Puszczam muzykę na YouTube."); return true; }
@@ -719,6 +880,10 @@ async function localCommand(text) {
   }
   if ((m = n.match(/^(otworz|odpal|uruchom|wejdz na|przejdz do|idz na)( mi)? (.+)/))) {
     let q = m[3].replace(/^(strone |stronke )/, "").replace(/ (prosze|dzieki)$/, "").trim();
+    const isWeb = /^(wejdz|przejdz|idz)/.test(m[1]) || /^(strone|stronke)/.test(m[3]) || / (kropka )?(pl|com|net|org|io|eu|tv|ai)$/.test(q);
+    if (!isWeb && await tryOpenApp(q, origTail(text, q))) return true;
+    if (!isWeb && !HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) return needHelper();
+    if (!isWeb && HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) { say(`Nie znalazłem programu ${origTail(text, q)} w menu Start.`); return true; }
     const url = SITES[q] || SITES[q.replace(/ (com|pl)$/, "")] ||
       (/^[a-z0-9-]+( kropka | )?(pl|com|net|org|io|eu|tv|ai)$/.test(q) ? "https://" + q.replace(/ kropka | /, ".") : null);
     if (url) { openUrl(url, q); say(`Otwieram ${q}.`); return true; }
@@ -743,7 +908,7 @@ Twoje odpowiedzi są czytane na głos przez syntezator mowy, więc:
 - Odpowiadaj krótko: zwykle 1–3 zdania. Dłużej tylko gdy użytkownik wyraźnie prosi o szczegóły.
 - Nie używaj markdown, list, nagłówków, emoji ani linków. Liczby i skróty zapisuj tak, żeby dobrze brzmiały czytane na głos.
 - Tekst od użytkownika pochodzi z rozpoznawania mowy i może zawierać błędy — domyśl się sensu, a gdy naprawdę nie wiesz, o co chodzi, dopytaj jednym zdaniem.
-Sam nie otwierasz stron ani programów; od tego panel ma komendy lokalne („otwórz…”, „wyszukaj…”, „puść…”, „minutnik…”, „pogoda”). Jeśli ktoś prosi o coś takiego, podpowiedz mu właściwą komendę.
+Sam nie wykonujesz akcji na komputerze; od tego panel ma komendy lokalne: „otwórz/uruchom [program lub strona]”, „zamknij [program]”, „wyszukaj…”, „puść… na YouTube”, „głośniej/ciszej/głośność 40”, „pauza”, „następna piosenka”, „otwórz pobrane”, „zablokuj komputer”, „wyłącz komputer”, „minutnik…”, „pogoda”. Jeśli ktoś prosi o coś takiego, podpowiedz mu właściwą komendę jednym zdaniem.
 Panel działa w przeglądarce na komputerze użytkownika. Data rozpoczęcia sesji: ${now.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
 }
 
@@ -925,7 +1090,7 @@ async function initSystemPanel() {
   setInterval(() => {
     updateClock();
     if (state === "awake" && !cfg.conv && Date.now() > awakeUntil) { setState("idle"); if ($("heard").textContent === "mów…") $("heard").textContent = ""; }
-    if (heap) $("sRam").textContent = (mem ? `≥ ${mem} GB · ` : "") + `JS ${Math.round(performance.memory.usedJSHeapSize / 1048576)} MB`;
+    if (heap && !sys.stats) $("sRam").textContent = (mem ? `≥ ${mem} GB · ` : "") + `JS ${Math.round(performance.memory.usedJSHeapSize / 1048576)} MB`;
   }, 1000);
 }
 
@@ -1103,6 +1268,7 @@ async function bootSequence() {
     "> synteza mowy " + (synth ? "[ OK ]" : "[ BRAK ]"),
     "> rdzeń AI Claude " + (cfg.apiKey ? "[ OK ]" : "[ CZEKA NA KLUCZ ]"),
     "> panel systemowy [ OK ]",
+    "> pomocnik PC " + (location.protocol !== "file:" && !HELPER.token.startsWith("__") ? "[ OK ]" : "[ BRAK — tylko przeglądarka ]"),
     "> gotowy.",
   ];
   const pre = $("bootLog");
@@ -1131,6 +1297,7 @@ $("bootBtn").onclick = async () => {
 
 resizeCanvas();
 initSystemPanel();
+initHelper();
 requestAnimationFrame(drawOrb);
 bootSequence();
 </script>

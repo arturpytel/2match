@@ -372,10 +372,31 @@ function loadVoices() {
 function pickVoice() {
   if (cfg.voice) { const v = voices.find((x) => x.name === cfg.voice); if (v) return v; }
   const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
-  const score = (v) => (/natural|online|neural/i.test(v.name) ? 4 : 0) + (/marek|male|krzysztof|jacek/i.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
+  const score = (v) => (/natural|online|neural/i.test(v.name) ? 4 : 0) + (/marek|krzysztof|jacek|adam/i.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
   return pl.sort((a, b) => score(b) - score(a))[0] || null;
 }
 if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+
+const FEMALE = /zofia|paulina|agnieszka|ewa|maja|zosia|anna|female|kobiet|google polski/i;
+const MALE = /marek|adam|jacek|krzysztof|\bmale\b/i;
+/** Ustawia głos: "f" kobiecy, "m" męski, "next" następny polski. Zwraca nazwę albo null. */
+function switchVoice(kind) {
+  const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
+  const quality = (v) => (/natural|online|neural/i.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
+  let list = kind === "f" ? pl.filter((v) => FEMALE.test(v.name) && !MALE.test(v.name))
+           : kind === "m" ? pl.filter((v) => MALE.test(v.name))
+           : pl;
+  if (!list.length) return null;
+  if (kind === "next") {
+    const cur = pickVoice();
+    const i = list.findIndex((v) => cur && v.name === cur.name);
+    list = [list[(i + 1) % list.length]];
+  }
+  const v = list.sort((a, b) => quality(b) - quality(a))[0];
+  cfg.voice = v.name;
+  store.set("voice", v.name);
+  return v.name;
+}
 
 function cleanForSpeech(t) {
   return t.replace(/```[\s\S]*?```/g, " (kod pominąłem) ").replace(/[*_#`>|]/g, "").replace(/https?:\/\/\S+/g, "link").replace(/\s+/g, " ").trim();
@@ -434,6 +455,8 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;
 let listening = false;   // czy chcemy, żeby mikrofon był włączony
 let recRunning = false;
+let netErrors = [];      // czasy ostatnich błędów sieci rozpoznawania mowy
+let netWarnedAt = 0;
 
 function wakeAliases() {
   const w = norm(cfg.wake || "jarvis");
@@ -466,7 +489,7 @@ function initRecognition() {
   rec.onstart = () => { recRunning = true; micStatus(true); };
   rec.onend = () => {
     recRunning = false;
-    if (listening) setTimeout(safeStart, 300); else micStatus(false);
+    if (listening) setTimeout(safeStart, netErrors.length ? Math.min(8000, 1000 * netErrors.length) : 300); else micStatus(false);
   };
   rec.onerror = (e) => {
     if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -475,10 +498,18 @@ function initRecognition() {
       log("SYSTEM", "Brak dostępu do mikrofonu. Kliknij ikonę kłódki przy adresie i zezwól na mikrofon.", "err");
       setState("off");
     } else if (e.error === "network") {
-      log("SYSTEM", "Rozpoznawanie mowy potrzebuje internetu (Chrome/Edge wysyła dźwięk do swojej usługi).", "err");
+      // pojedyncze przerwy zdarzają się często — wznawiamy po cichu, zgłaszamy tylko gdy się powtarzają
+      const now = Date.now();
+      netErrors = netErrors.filter((t) => now - t < 60000);
+      netErrors.push(now);
+      if (netErrors.length >= 3 && now - netWarnedAt > 120000) {
+        netWarnedAt = now;
+        log("SYSTEM", "Usługa rozpoznawania mowy nie odpowiada (Edge/Chrome wysyła dźwięk do swojego serwera). Sprawdź internet; jeśli to nie pomoże, uruchom panel w Google Chrome.", "err");
+      }
     }
   };
   rec.onresult = (e) => {
+    netErrors = [];
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i];
@@ -826,6 +857,20 @@ async function localCommand(text) {
 
   if (pendingConfirm && await pcCommand(text, n)) return true;
   if (/^(stop|cisza|przestan|wystarczy|dosc|anuluj|zamknij sie)$/.test(n)) { stopSpeaking(); return true; }
+  if (/\bglos(em)?\b/.test(n) && /(zmien|ustaw|daj|przelacz|wybierz|mow|gadaj|chce|mozesz|moglbys|inny)/.test(n) && !/(glosnosc|glosniej)/.test(n)) {
+    const kind = /(kobie|zensk|damsk|dziewcz|babsk)/.test(n) ? "f" : /(mesk|mezczy|facet|chlop)/.test(n) ? "m" : "next";
+    const name = switchVoice(kind);
+    if (name) {
+      stopSpeaking();
+      say(kind === "f" ? `Proszę bardzo, ${cfg.name}. Tak teraz brzmię.` : kind === "m" ? `Wróciłem do męskiego głosu, ${cfg.name}.` : "Tak brzmi mój nowy głos.");
+      log("SYSTEM", "Głos: " + name, "sys");
+    } else {
+      say(kind === "f"
+        ? "Nie mam zainstalowanego kobiecego polskiego głosu. Najładniejszy, Zofia, jest w przeglądarce Edge. W Windowsie możesz też dodać głos w Ustawieniach, w sekcji Czas i język, Mowa."
+        : "Nie znalazłem innego polskiego głosu na tym komputerze.");
+    }
+    return true;
+  }
   if (await pcCommand(text, n)) return true;
   if (/(ktora (jest )?(teraz )?godzina|jaka (jest )?godzina|podaj godzine)/.test(n)) {
     const d = new Date();
@@ -916,7 +961,7 @@ Twoje odpowiedzi są czytane na głos przez syntezator mowy, więc:
 - Odpowiadaj krótko: zwykle 1–3 zdania. Dłużej tylko gdy użytkownik wyraźnie prosi o szczegóły.
 - Nie używaj markdown, list, nagłówków, emoji ani linków. Liczby i skróty zapisuj tak, żeby dobrze brzmiały czytane na głos.
 - Tekst od użytkownika pochodzi z rozpoznawania mowy i może zawierać błędy — domyśl się sensu, a gdy naprawdę nie wiesz, o co chodzi, dopytaj jednym zdaniem.
-Sam nie wykonujesz akcji na komputerze; od tego panel ma komendy lokalne: „otwórz/uruchom [program lub strona]”, „zamknij [program]”, „wyszukaj…”, „puść… na YouTube”, „głośniej/ciszej/głośność 40”, „pauza”, „następna piosenka”, „otwórz pobrane”, „zablokuj komputer”, „wyłącz komputer”, „minutnik…”, „pogoda”. Jeśli ktoś prosi o coś takiego, podpowiedz mu właściwą komendę jednym zdaniem.
+Sam nie wykonujesz akcji na komputerze; od tego panel ma komendy lokalne: „otwórz/uruchom [program lub strona]”, „zamknij [program]”, „wyszukaj…”, „puść… na YouTube”, „głośniej/ciszej/głośność 40”, „pauza”, „następna piosenka”, „otwórz pobrane”, „zablokuj komputer”, „wyłącz komputer”, „minutnik…”, „pogoda”, „zmień głos na kobiecy/męski”. Jeśli ktoś prosi o coś takiego, podpowiedz mu właściwą komendę jednym zdaniem.
 Panel działa w przeglądarce na komputerze użytkownika. Data rozpoczęcia sesji: ${now.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
 }
 

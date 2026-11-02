@@ -8,7 +8,7 @@ Na pytania odpowiada Claude, a proste rzeczy (godzina, otwieranie stron, minutni
 
 **Windows:** kliknij dwa razy `start-jarvis.bat`.
 Otworzy się Microsoft Edge w trybie aplikacji (bez paska adresu, wygląda jak osobny program).
-Za pierwszym razem zezwól na mikrofon i na wyskakujące okna (to dla komend „otwórz…”).
+Za pierwszym razem zezwól na mikrofon. Strony z komend „otwórz…” otwierają się w Twojej zwykłej przeglądarce.
 
 **macOS / Linux:** `./start-jarvis.sh` (potrzebny Python 3 i Chrome albo Edge).
 

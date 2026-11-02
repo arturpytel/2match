@@ -1,0 +1,1730 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S.</title>
+<meta name="theme-color" content="#02070c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2302070c'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%2333e1ff' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%2333e1ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+:root{
+  --bg:#02070c; --panel:rgba(8,28,40,.55); --line:rgba(51,225,255,.22); --line-strong:rgba(51,225,255,.55);
+  --cyan:#33e1ff; --cyan-dim:#1a8fa6; --ink:#d8f7ff; --muted:#6fa3b3; --amber:#ffb340; --red:#ff4d5e; --green:#4dffa6;
+  --head:"Orbitron", "Rajdhani", sans-serif; --body:"Rajdhani", system-ui, sans-serif; --mono:"Share Tech Mono", ui-monospace, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;overflow:hidden}
+body{background:radial-gradient(ellipse at 50% 45%, #06202c 0%, #030c13 55%, var(--bg) 100%)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg, rgba(51,225,255,.03) 0 1px, transparent 1px 3px)}
+#grid{position:fixed;inset:0;pointer-events:none;opacity:.35;
+  background-image:linear-gradient(var(--line) 1px, transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:60px 60px;mask-image:radial-gradient(ellipse at center, #000 10%, transparent 70%)}
+button,input,select{font:inherit;color:inherit}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+
+/* ---------- layout ---------- */
+.app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:300px 1fr 340px;grid-template-rows:auto minmax(0,1fr) auto;gap:16px;padding:16px}
+header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.brand{font-family:var(--head);font-weight:900;letter-spacing:.35em;font-size:1.25rem;color:var(--cyan);text-shadow:0 0 12px rgba(51,225,255,.6)}
+.brand small{display:block;font-family:var(--mono);font-weight:400;letter-spacing:.12em;font-size:.7rem;color:var(--muted);text-shadow:none;margin-top:2px}
+.clock{text-align:right;font-family:var(--head)}
+.clock .t{font-size:1.6rem;font-weight:700;letter-spacing:.08em;color:var(--ink)}
+.clock .d{font-family:var(--mono);font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+
+.panel{background:var(--panel);border:1px solid var(--line);position:relative;padding:14px 16px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px))}
+.panel h2{margin:0 0 10px;font-family:var(--head);font-size:.72rem;font-weight:700;letter-spacing:.28em;color:var(--cyan);display:flex;align-items:center;gap:8px}
+.panel h2::before{content:"";width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.col{display:flex;flex-direction:column;gap:16px;min-height:0}
+.left{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent}
+.left .panel{flex-shrink:0}
+
+.stat{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:6px 0;border-bottom:1px dashed rgba(51,225,255,.12);font-size:.95rem}
+.stat:last-child{border-bottom:0}
+.stat .k{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:.78rem;align-self:center}
+.stat .v{font-family:var(--mono);color:var(--ink);text-align:right}
+.bar{grid-column:1/-1;height:4px;background:rgba(51,225,255,.1);margin-top:4px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));box-shadow:0 0 8px var(--cyan);transition:width .6s}
+
+.cmds{list-style:none;margin:0;padding:0;font-size:.95rem;display:flex;flex-direction:column;gap:6px}
+.cmds li{color:var(--muted)}
+.cmds b{color:var(--ink);font-weight:600}
+
+/* ---------- center ---------- */
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;position:relative}
+#orb{width:min(62vh,100%);aspect-ratio:1;max-width:560px;cursor:pointer}
+.state{font-family:var(--head);letter-spacing:.4em;font-size:.85rem;color:var(--cyan);margin-top:-6px;text-transform:uppercase;min-height:1.2em}
+.state.thinking{color:var(--amber)}
+.state.off{color:var(--muted)}
+.heard{margin-top:14px;min-height:1.6em;max-width:640px;text-align:center;font-size:1.2rem;color:var(--muted);font-style:italic}
+.reply{margin-top:8px;min-height:3em;max-width:720px;text-align:center;font-size:1.35rem;line-height:1.4;font-weight:500;color:var(--ink);
+  max-height:22vh;overflow:auto;scrollbar-width:thin}
+
+/* ---------- log ---------- */
+.log{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--cyan-dim) transparent}
+.msg{font-size:.98rem;line-height:1.4;padding-left:10px;border-left:2px solid var(--line-strong)}
+.msg .who{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;color:var(--muted);display:block;margin-bottom:2px}
+.msg.user{border-color:var(--amber)}
+.msg.user .who{color:var(--amber)}
+.msg.sys{border-color:rgba(111,163,179,.4);color:var(--muted);font-size:.88rem}
+.msg.err{border-color:var(--red);color:#ffc2c8}
+.msg a{color:var(--cyan)}
+
+/* ---------- footer ---------- */
+footer{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:10px;flex-wrap:wrap}
+.btn{background:rgba(51,225,255,.06);border:1px solid var(--line-strong);color:var(--cyan);padding:9px 16px;cursor:pointer;font-family:var(--head);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;transition:background .2s, box-shadow .2s}
+.btn:hover{background:rgba(51,225,255,.16);box-shadow:0 0 14px rgba(51,225,255,.3)}
+.btn.primary{background:var(--cyan);color:#02141c;font-weight:700}
+.btn.primary:hover{background:#7aeeff}
+.btn.danger{border-color:rgba(255,77,94,.6);color:var(--red)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.typebox{display:flex;gap:8px;flex:1;max-width:560px;min-width:220px}
+.typebox input{flex:1;background:rgba(0,0,0,.35);border:1px solid var(--line);padding:9px 12px;outline:none;font-size:1rem}
+.typebox input:focus{border-color:var(--cyan)}
+.hint{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.warn{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+
+/* ---------- overlays ---------- */
+.overlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(1,6,10,.88);backdrop-filter:blur(4px)}
+.overlay[hidden]{display:none}
+.boot{width:min(560px,calc(100% - 32px));font-family:var(--mono);color:var(--cyan);font-size:.9rem}
+.boot h1{font-family:var(--head);font-weight:900;letter-spacing:.5em;font-size:clamp(1.6rem,6vw,2.6rem);margin:0 0 4px;text-shadow:0 0 18px rgba(51,225,255,.7)}
+.boot .sub{color:var(--muted);letter-spacing:.2em;margin-bottom:22px;font-size:.75rem}
+.boot pre{margin:0 0 22px;min-height:9.5em;white-space:pre-wrap;line-height:1.55;color:var(--ink)}
+.boot .warn{color:var(--amber);margin-bottom:16px;line-height:1.5}
+.btn.big{padding:14px 30px;font-size:.85rem;letter-spacing:.35em;box-shadow:0 0 30px rgba(51,225,255,.35)}
+
+/* ---------- filmowe intro ---------- */
+#boot{background:radial-gradient(ellipse at center,#04121b 0%,#010508 70%);backdrop-filter:none}
+#boot.fade-out{animation:bootOut .8s ease-in forwards}
+@keyframes bootOut{to{opacity:0;transform:scale(1.08);filter:blur(6px)}}
+.cine{position:relative;width:min(680px,calc(100% - 32px));display:flex;flex-direction:column;align-items:center;text-align:center;font-family:var(--mono)}
+.cine[hidden]{display:none}
+.reticle{position:relative;width:min(300px,62vw);aspect-ratio:1}
+.reticle svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.reticle circle,.reticle line{fill:none;stroke:var(--cyan);transform-origin:150px 150px;filter:drop-shadow(0 0 6px rgba(51,225,255,.8))}
+.reticle .r1{stroke-width:2;stroke-dasharray:60 14;animation:drawIn 1.2s ease-out both,spin 9s linear infinite}
+.reticle .r2{stroke-width:7;stroke-dasharray:28 10;opacity:.75;animation:drawIn 1.4s .25s ease-out both,spinR 6s linear infinite}
+.reticle .r3{stroke-width:1.5;stroke-dasharray:180 40;animation:drawIn 1.6s .5s ease-out both,spin 3.5s linear infinite}
+.reticle .r4{stroke-width:1;stroke-dasharray:2 6;opacity:.6;animation:drawIn 1s .1s ease-out both,spinR 20s linear infinite}
+.reticle .tick{stroke-width:2;opacity:.8;animation:fadeIn .4s 1s both}
+.cine.online .reticle .r1,.cine.online .reticle .r3{animation-duration:1.2s,1.2s}
+@keyframes drawIn{from{stroke-dashoffset:900;opacity:0}to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinR{to{transform:rotate(-360deg)}}
+@keyframes fadeIn{from{opacity:0}}
+.pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:700;font-size:clamp(1.6rem,6vw,2.6rem);color:#e9fdff;text-shadow:0 0 18px var(--cyan)}
+.cine-title{margin-top:22px;font-family:var(--head);font-weight:900;letter-spacing:.55em;padding-left:.55em;font-size:clamp(1.7rem,7vw,3.4rem);color:var(--cyan);text-shadow:0 0 22px rgba(51,225,255,.8);opacity:.2;transition:opacity .4s}
+.cine.online .cine-title{opacity:1;animation:glitch .5s steps(2) 3}
+@keyframes glitch{0%{text-shadow:3px 0 #ff2a6d,-3px 0 #33e1ff;transform:translateX(2px)}50%{text-shadow:-4px 0 #ff2a6d,4px 0 #33e1ff;transform:translateX(-3px) skewX(6deg)}100%{text-shadow:0 0 22px rgba(51,225,255,.8);transform:none}}
+.cine-sub{margin-top:8px;letter-spacing:.45em;font-size:.8rem;color:var(--muted);min-height:1.2em}
+.cine.online .cine-sub{color:var(--green);text-shadow:0 0 10px var(--green)}
+.cine-bar{width:min(420px,80vw);height:3px;background:rgba(51,225,255,.12);margin:18px 0 14px;overflow:hidden}
+.cine-bar i{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 12px var(--cyan);transition:width .35s}
+.cine-log{width:min(460px,86vw);text-align:left;font-size:.82rem;line-height:1.7;color:var(--ink);min-height:9em}
+.cine-log div{animation:lineIn .25s ease-out both;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cine-log b{float:right;font-weight:400;color:var(--green)}
+.cine-log b.warn{color:var(--amber)}
+@keyframes lineIn{from{opacity:0;transform:translateX(-12px)}}
+.flash{position:fixed;inset:0;z-index:45;pointer-events:none;opacity:0;background:radial-gradient(circle at center,#fff 0%,rgba(150,240,255,.85) 25%,rgba(51,225,255,.25) 55%,transparent 75%)}
+.flash.go{animation:flash 1s ease-out}
+@keyframes flash{0%{opacity:0}6%{opacity:1}100%{opacity:0}}
+.shock{position:fixed;left:50%;top:50%;width:120px;height:120px;margin:-60px 0 0 -60px;border:3px solid var(--cyan);border-radius:50%;z-index:46;pointer-events:none;opacity:0;box-shadow:0 0 30px var(--cyan),inset 0 0 30px var(--cyan)}
+.shock.go{animation:shock 1.1s cubic-bezier(.1,.7,.3,1)}
+.shock.go.s2{animation-delay:.15s}
+@keyframes shock{0%{opacity:1;transform:scale(.2)}100%{opacity:0;transform:scale(14)}}
+body.shake .app{animation:shake .45s}
+@keyframes shake{20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-3px,2px)}80%{transform:translate(2px,-1px)}}
+
+/* wjazd panelu po intro */
+body.booting .app{opacity:0}
+body.revealing header{animation:revTop .8s cubic-bezier(.2,.8,.2,1) both}
+body.revealing .left{animation:revLeft .9s .15s cubic-bezier(.2,.8,.2,1) both}
+body.revealing .right{animation:revRight .9s .3s cubic-bezier(.2,.8,.2,1) both}
+body.revealing .center{animation:revZoom 1.1s cubic-bezier(.2,.8,.2,1) both}
+body.revealing footer{animation:revBottom .8s .45s cubic-bezier(.2,.8,.2,1) both}
+body.revealing .panel{animation:panelGlow 1.6s .4s ease-out both}
+@keyframes revTop{from{opacity:0;transform:translateY(-40px)}}
+@keyframes revBottom{from{opacity:0;transform:translateY(40px)}}
+@keyframes revLeft{from{opacity:0;transform:translateX(-80px)}}
+@keyframes revRight{from{opacity:0;transform:translateX(80px)}}
+@keyframes revZoom{from{opacity:0;transform:scale(.4);filter:blur(10px)}}
+@keyframes panelGlow{0%{box-shadow:0 0 0 rgba(51,225,255,0)}30%{box-shadow:0 0 40px rgba(51,225,255,.45)}100%{box-shadow:0 0 0 rgba(51,225,255,0)}}
+@media (prefers-reduced-motion:reduce){body.shake .app{animation:none}}
+
+.modal{width:min(560px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-family:var(--head);font-size:.65rem;letter-spacing:.22em;color:var(--cyan);text-transform:uppercase}
+.field input,.field select{background:rgba(0,0,0,.4);border:1px solid var(--line);padding:9px 10px;outline:none;font-size:1rem;width:100%}
+.field input:focus,.field select:focus{border-color:var(--cyan)}
+.field select option{background:#04131b}
+.field .note{font-size:.85rem;color:var(--muted);line-height:1.4}
+.field .note a{color:var(--cyan)}
+.row{display:flex;gap:12px}
+.row .field{flex:1}
+.check{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:1rem;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--cyan)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1100px){
+  .app{grid-template-columns:260px 1fr;grid-template-rows:auto 1fr auto auto}
+  .right{grid-column:1/-1;max-height:30vh}
+}
+@media (max-width:760px){
+  html,body{overflow:auto}
+  .app{height:auto;min-height:100%;grid-template-columns:1fr;padding:12px 16px}
+  .left{order:3}
+  .right{order:2;max-height:40vh}
+  #orb{width:min(80vw,420px)}
+  .clock .t{font-size:1.2rem}
+  .brand{letter-spacing:.2em;font-size:1rem}
+}
+</style>
+</head>
+<body class="booting">
+<div id="grid"></div>
+
+<div class="app">
+  <header>
+    <div class="brand">J.A.R.V.I.S.<small>JUST A RATHER VERY INTELLIGENT SYSTEM · CLAUDE CORE</small></div>
+    <div class="clock"><div class="t num" id="clockT">--:--:--</div><div class="d" id="clockD">—</div></div>
+  </header>
+
+  <aside class="col left">
+    <section class="panel">
+      <h2>STATUS SYSTEMU</h2>
+      <div class="stat"><span class="k">Rdzeń AI</span><span class="v" id="sAi">—</span></div>
+      <div class="stat"><span class="k">Pomocnik PC</span><span class="v" id="sHelper"><span class="dot"></span>offline</span></div>
+      <div class="stat"><span class="k">Mikrofon</span><span class="v" id="sMic"><span class="dot"></span>off</span></div>
+      <div class="stat"><span class="k">Poziom audio</span><span class="v" id="sLvl">0%</span><span class="bar"><i id="bLvl"></i></span></div>
+      <div class="stat"><span class="k">Procesor</span><span class="v" id="sCpu">—</span><span class="bar" id="bCpuW" hidden><i id="bCpu"></i></span></div>
+      <div class="stat"><span class="k">Pamięć RAM</span><span class="v" id="sRam">—</span><span class="bar" id="bRamW" hidden><i id="bRam"></i></span></div>
+      <div class="stat" id="rDisk" hidden><span class="k">Dysk C:</span><span class="v" id="sDisk">—</span><span class="bar"><i id="bDisk"></i></span></div>
+      <div class="stat"><span class="k">Bateria</span><span class="v" id="sBat">—</span><span class="bar"><i id="bBat"></i></span></div>
+      <div class="stat"><span class="k">Sieć</span><span class="v" id="sNet">—</span></div>
+      <div class="stat"><span class="k">Ekran</span><span class="v" id="sScr">—</span></div>
+      <div class="stat"><span class="k">Klatki / s</span><span class="v" id="sFps">—</span></div>
+      <div class="stat"><span class="k">Czas pracy</span><span class="v" id="sUp">00:00:00</span></div>
+      <div class="stat"><span class="k">Ost. odpowiedź</span><span class="v" id="sLat">—</span></div>
+    </section>
+    <section class="panel">
+      <h2>KOMENDY</h2>
+      <ul class="cmds">
+        <li><b>„Jarvis”</b> — budzi mnie, potem mów</li>
+        <li><b>„Jarvis, która godzina?”</b></li>
+        <li><b>„otwórz YouTube / Gmail / Spotify…”</b></li>
+        <li><b>„uruchom Discorda”</b> · <b>„zamknij notatnik”</b></li>
+        <li><b>„głośniej”</b> · <b>„głośność 30”</b> · <b>„pauza”</b></li>
+        <li><b>„wyszukaj …”</b> · <b>„puść …”</b> · <b>„pogoda”</b></li>
+        <li><b>„minutnik 5 minut”</b> · <b>„status systemu”</b></li>
+        <li><b>„zablokuj komputer”</b> · <b>„wyłącz komputer”</b></li>
+        <li><b>„stop”</b> · <b>„nowa rozmowa”</b> · <b>„idź spać”</b></li>
+        <li>Wszystko inne → pytanie do Claude'a</li>
+      </ul>
+    </section>
+  </aside>
+
+  <main class="center">
+    <canvas id="orb" title="Kliknij, żeby mówić (albo naciśnij spację)"></canvas>
+    <div class="state off" id="state">offline</div>
+    <div class="heard" id="heard"></div>
+    <div class="reply" id="reply"></div>
+  </main>
+
+  <aside class="col right">
+    <section class="panel" style="flex:1;display:flex;flex-direction:column;min-height:0">
+      <h2>DZIENNIK</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </aside>
+
+  <footer>
+    <div class="btns">
+      <button class="btn primary" id="talkBtn">● Mów</button>
+      <button class="btn" id="muteBtn">Wycisz</button>
+      <button class="btn" id="settingsBtn">Ustawienia</button>
+    </div>
+    <form class="typebox" id="typeForm" autocomplete="off">
+      <input id="typeIn" placeholder="…albo wpisz polecenie i Enter">
+      <button class="btn" type="submit">Wyślij</button>
+    </form>
+    <span class="hint">SPACJA = mów · ESC = stop</span>
+  </footer>
+</div>
+
+<!-- BOOT -->
+<div class="overlay" id="boot">
+  <div class="boot" id="bootStart" hidden>
+    <h1>J.A.R.V.I.S.</h1>
+    <div class="sub">SYSTEM GŁOSOWY · RDZEŃ CLAUDE</div>
+    <pre id="bootLog"></pre>
+    <div class="warn" id="bootWarn" hidden></div>
+    <button class="btn primary big" id="bootBtn">Aktywuj system</button>
+  </div>
+  <div class="cine" id="cine" hidden>
+    <div class="reticle">
+      <svg viewBox="0 0 300 300" aria-hidden="true">
+        <circle class="r4" cx="150" cy="150" r="146"/>
+        <circle class="r1" cx="150" cy="150" r="132"/>
+        <circle class="r2" cx="150" cy="150" r="112"/>
+        <circle class="r3" cx="150" cy="150" r="92"/>
+        <line class="tick" x1="150" y1="0" x2="150" y2="22"/><line class="tick" x1="150" y1="278" x2="150" y2="300"/>
+        <line class="tick" x1="0" y1="150" x2="22" y2="150"/><line class="tick" x1="278" y1="150" x2="300" y2="150"/>
+      </svg>
+      <div class="pct num" id="cinePct">0%</div>
+    </div>
+    <div class="cine-title">J.A.R.V.I.S.</div>
+    <div class="cine-sub" id="cineSub">INICJALIZACJA</div>
+    <div class="cine-bar"><i id="cineBar"></i></div>
+    <div class="cine-log" id="cineLog"></div>
+  </div>
+</div>
+<div class="flash" id="flash"></div>
+<div class="shock" id="shock1"></div>
+<div class="shock s2" id="shock2"></div>
+
+<!-- SETTINGS -->
+<div class="overlay" id="settings" hidden>
+  <form class="panel modal" id="settingsForm">
+    <h2>USTAWIENIA</h2>
+    <div class="field">
+      <label for="fKey">Klucz API Anthropic</label>
+      <input id="fKey" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+      <div class="note">Potrzebny, żeby Jarvis odpowiadał na dowolne pytania (Claude). Klucz założysz na <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com</a>. Zapisuje się tylko w tej przeglądarce na Twoim komputerze. Bez klucza działają komendy lokalne (godzina, otwieranie stron, minutnik…).</div>
+    </div>
+    <div class="field">
+      <label for="fModel">Model</label>
+      <select id="fModel">
+        <option value="claude-opus-5-5">Claude Opus 5.5 — najmądrzejszy</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — szybszy, tańszy</option>
+        <option value="claude-haiku-5-5">Claude Haiku 5.5 — najszybszy, najtańszy</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fWake">Słowo budzące</label>
+        <input id="fWake" placeholder="jarvis">
+      </div>
+      <div class="field">
+        <label for="fName">Jak mam się do Ciebie zwracać</label>
+        <input id="fName" placeholder="szefie">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fVoice">Głos</label>
+      <select id="fVoice"></select>
+      <div class="note">Najlepiej brzmią głosy „Online (Natural)” w przeglądarce Microsoft Edge (np. Marek).</div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fRate">Tempo mowy: <span id="fRateV"></span></label>
+        <input id="fRate" type="range" min="0.6" max="1.6" step="0.05">
+      </div>
+      <div class="field">
+        <label for="fPitch">Wysokość głosu: <span id="fPitchV"></span></label>
+        <input id="fPitch" type="range" min="0.5" max="1.5" step="0.05">
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="fConv"> Tryb rozmowy — nie trzeba mówić „Jarvis” przed każdym zdaniem</label>
+    <label class="check"><input type="checkbox" id="fSfx"> Dźwięki systemowe</label>
+    <label class="check"><input type="checkbox" id="fIntro"> Filmowe intro z muzyką przy starcie</label>
+    <div class="field">
+      <label for="fIntroVol">Głośność muzyki intro: <span id="fIntroVolV"></span></label>
+      <input id="fIntroVol" type="range" min="0" max="1" step="0.05">
+      <div class="note">Własna muzyka: wrzuć plik <b>intro.mp3</b> do folderu Jarvisa — błysk sam zgra się z momentem, w którym wchodzi zespół. Bez pliku gra wbudowany, filmowy podkład. Komenda „odpal intro” puszcza intro jeszcze raz.</div>
+    </div>
+    <div class="btns" style="justify-content:space-between">
+      <button class="btn danger" type="button" id="testVoice">Test głosu</button>
+      <div class="btns">
+        <button class="btn" type="button" id="closeSettings">Anuluj</button>
+        <button class="btn primary" type="submit">Zapisz</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script type="module">
+/* =========================================================
+   J.A.R.V.I.S. — głosowy panel sterowania z rdzeniem Claude
+   Działa w Chrome / Edge (rozpoznawanie mowy Web Speech API).
+   ========================================================= */
+
+const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.135.0/+esm";
+const $ = (id) => document.getElementById(id);
+
+/* ---------- ustawienia ---------- */
+const DEFAULTS = { apiKey: "", model: "claude-opus-5-5", wake: "jarvis", name: "szefie", voice: "", rate: 1.0, pitch: 1.0, conv: false, sfx: true, intro: true, introVol: 0.7 };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("jarvis." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("jarvis." + k, JSON.stringify(v)); } catch {} },
+};
+const cfg = Object.fromEntries(Object.entries(DEFAULTS).map(([k, d]) => [k, store.get(k, d)]));
+const saveCfg = () => Object.keys(DEFAULTS).forEach((k) => store.set(k, cfg[k]));
+
+/* ---------- stan ---------- */
+let state = "off";            // off | idle | awake | listening | thinking | speaking | sleep
+let awakeUntil = 0;           // do kiedy słuchamy polecenia bez słowa budzącego
+let micLevel = 0;             // 0..1 z analizatora
+let speakLevel = 0;
+let orbBoost = 0;             // rozbłysk rdzenia po intro
+let muted = false;
+const startedAt = Date.now();
+const history = [];           // rozmowa z Claude'em (tylko dopisujemy na końcu)
+
+/* ---------- pomocnicze ---------- */
+const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l").replace(/[^\p{L}\p{N}\s:]/gu, " ").replace(/\s+/g, " ").trim();
+const plural = (n, one, few, many) => `${n} ${n === 1 ? one : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? few : many}`;
+const pad = (n) => String(n).padStart(2, "0");
+const hour = () => new Date().getHours();
+const greeting = () => (hour() < 5 ? "Dobry wieczór" : hour() < 18 ? "Dzień dobry" : "Dobry wieczór");
+
+function setState(s) {
+  state = s;
+  const labels = { off: "offline", idle: `czekam na „${cfg.wake}”`, awake: "słucham…", listening: "słucham…", thinking: "przetwarzam", speaking: "mówię", sleep: "uśpiony — kliknij, żeby obudzić" };
+  const el = $("state");
+  el.textContent = labels[s] || s;
+  el.className = "state" + (s === "thinking" ? " thinking" : s === "off" || s === "sleep" ? " off" : "");
+}
+
+function log(who, text, cls = "") {
+  const box = $("log");
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  const w = document.createElement("span");
+  w.className = "who";
+  w.textContent = `${who} · ${new Date().toLocaleTimeString("pl-PL")}`;
+  div.append(w);
+  if (text instanceof Node) div.append(text); else div.append(document.createTextNode(text));
+  box.append(div);
+  box.scrollTop = box.scrollHeight;
+  while (box.children.length > 120) box.firstChild.remove();
+  return div;
+}
+
+/* ---------- efekty dźwiękowe ---------- */
+let actx;
+function beep(type = "wake") {
+  if (!cfg.sfx || muted) return;
+  try {
+    actx = actx || new AudioContext();
+    const seq = { wake: [880, 1320], done: [1320, 880], err: [300, 200], tick: [1000] }[type] || [880];
+    seq.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      const t = actx.currentTime + i * 0.09;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g).connect(actx.destination);
+      o.start(t); o.stop(t + 0.14);
+    });
+  } catch {}
+}
+
+/* =========================================================
+   MOWA (TTS)
+   ========================================================= */
+const synth = window.speechSynthesis;
+let voices = [];
+let speakQueue = [];
+let speaking = false;
+let spokenRecently = "";     // co Jarvis właśnie mówił (żeby nie brać własnego głosu za polecenie)
+let speechEndedAt = 0;
+
+function loadVoices() {
+  voices = synth ? synth.getVoices() : [];
+  const sel = $("fVoice");
+  sel.innerHTML = "";
+  const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
+  const list = pl.length ? pl : voices;
+  const auto = document.createElement("option");
+  auto.value = ""; auto.textContent = "Automatycznie (najlepszy polski)";
+  sel.append(auto);
+  list.forEach((v) => {
+    const o = document.createElement("option");
+    o.value = v.name; o.textContent = `${v.name} (${v.lang})`;
+    sel.append(o);
+  });
+  sel.value = cfg.voice;
+}
+function pickVoice() {
+  if (cfg.voice) { const v = voices.find((x) => x.name === cfg.voice); if (v) return v; }
+  const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
+  const score = (v) => (/natural|online|neural/i.test(v.name) ? 4 : 0) + (FEMALE.test(v.name) && !MALE.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
+  return pl.sort((a, b) => score(b) - score(a))[0] || null;
+}
+if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+
+const FEMALE = /zofia|paulina|agnieszka|ewa|maja|zosia|anna|female|kobiet|google polski/i;
+const MALE = /marek|adam|jacek|krzysztof|\bmale\b/i;
+/** Czy Jarvis mówi teraz kobiecym głosem (wtedy mówi o sobie w rodzaju żeńskim). */
+function isFem() { const v = pickVoice(); return v ? FEMALE.test(v.name) && !MALE.test(v.name) : true; }
+const gx = (m, f) => (isFem() ? f : m);
+/** Ustawia głos: "f" kobiecy, "m" męski, "next" następny polski. Zwraca nazwę albo null. */
+function switchVoice(kind) {
+  const pl = voices.filter((v) => v.lang.toLowerCase().startsWith("pl"));
+  const quality = (v) => (/natural|online|neural/i.test(v.name) ? 2 : 0) + (/google/i.test(v.name) ? 1 : 0);
+  let list = kind === "f" ? pl.filter((v) => FEMALE.test(v.name) && !MALE.test(v.name))
+           : kind === "m" ? pl.filter((v) => MALE.test(v.name))
+           : pl;
+  if (!list.length) return null;
+  if (kind === "next") {
+    const cur = pickVoice();
+    const i = list.findIndex((v) => cur && v.name === cur.name);
+    list = [list[(i + 1) % list.length]];
+  }
+  const v = list.sort((a, b) => quality(b) - quality(a))[0];
+  cfg.voice = v.name;
+  store.set("voice", v.name);
+  return v.name;
+}
+
+function cleanForSpeech(t) {
+  return t.replace(/```[\s\S]*?```/g, " (kod pominąłem) ").replace(/[*_#`>|]/g, "").replace(/https?:\/\/\S+/g, "link").replace(/\s+/g, " ").trim();
+}
+function speak(text) {
+  text = cleanForSpeech(text);
+  if (!text) return;
+  spokenRecently = (spokenRecently + " " + norm(text)).slice(-600);
+  speakQueue.push(text);
+  if (!speaking) nextUtterance();
+}
+const idleCallbacks = [];
+/** Wywoła fn, kiedy Jarvis skończy mówić wszystko z kolejki. */
+function whenSpeechIdle(fn) { idleCallbacks.push(fn); }
+function nextUtterance() {
+  if (muted || !synth || !speakQueue.length) {
+    if (speaking) speechEndedAt = Date.now();
+    speakQueue = [];
+    speaking = false;
+    idleCallbacks.splice(0).forEach((f) => { try { f(); } catch {} });
+    if (state === "speaking") afterSpeaking();
+    return;
+  }
+  speaking = true;
+  setState("speaking");
+  const u = new SpeechSynthesisUtterance(speakQueue.shift());
+  const v = pickVoice();
+  if (v) u.voice = v;
+  u.lang = v ? v.lang : "pl-PL";
+  u.rate = cfg.rate; u.pitch = cfg.pitch;
+  u.onboundary = () => { speakLevel = 1; };
+  u.onend = u.onerror = () => nextUtterance();
+  synth.speak(u);
+}
+function stopSpeaking() {
+  speakQueue = [];
+  if (synth) synth.cancel();
+  if (speaking) speechEndedAt = Date.now();
+  speaking = false;
+}
+function isEcho(text) {
+  // końcówka mojej własnej wypowiedzi, która wpadła do mikrofonu
+  if (Date.now() - speechEndedAt > 3500 || !spokenRecently) return false;
+  const words = norm(text).split(" ").filter((w) => w.length > 2);
+  if (words.length < 2) return false;   // krótkie odpowiedzi typu „tak” / „nie” to nie echo
+  const hit = words.filter((w) => spokenRecently.includes(w)).length;
+  return hit / words.length >= 0.6;
+}
+function afterSpeaking() {
+  // po odpowiedzi chwilę słuchamy dalej, żeby dało się dopytać bez „Jarvis”
+  if (generating) { setState("thinking"); return; }
+  awakeUntil = Date.now() + 7000;
+  setState(listening ? "awake" : "idle");
+}
+
+/* =========================================================
+   ROZPOZNAWANIE MOWY (STT) + SŁOWO BUDZĄCE
+   ========================================================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+let listening = false;   // czy chcemy, żeby mikrofon był włączony
+let recRunning = false;
+let netErrors = [];      // czasy ostatnich błędów sieci rozpoznawania mowy
+let netWarnedAt = 0;
+
+function wakeAliases() {
+  const w = norm(cfg.wake || "jarvis");
+  if (w === "jarvis") return ["jarvis", "jarvisie", "jarvisa", "jarwis", "jarwisie", "dzarwis", "dzarvis", "dzarwisie", "dzarvisie", "jervis", "dzervis", "czarwis", "jarvi", "jarwiz", "darwis", "dzarwiz", "harvis", "travis"];
+  return [w];
+}
+function splitWake(text) {
+  const n = norm(text);
+  const words = n.split(" ");
+  const aliases = wakeAliases();
+  for (let i = 0; i < words.length; i++) {
+    if (aliases.includes(words[i]) || (aliases[0].includes(" ") && words.slice(i).join(" ").startsWith(aliases[0]))) {
+      const skip = aliases[0].includes(" ") ? aliases[0].split(" ").length : 1;
+      // zwracamy oryginalny tekst po słowie budzącym (z polskimi znakami)
+      const origWords = text.trim().split(/\s+/);
+      const rest = origWords.length === words.length ? origWords.slice(i + skip).join(" ") : words.slice(i + skip).join(" ");
+      return { found: true, rest: rest.replace(/^[\s,.:;!?-]+/, "").trim() };
+    }
+  }
+  return { found: false, rest: text.trim() };
+}
+
+function initRecognition() {
+  if (!SR) return false;
+  rec = new SR();
+  rec.lang = "pl-PL";
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.onstart = () => { recRunning = true; micStatus(true); };
+  rec.onend = () => {
+    recRunning = false;
+    if (listening) setTimeout(safeStart, netErrors.length ? Math.min(8000, 1000 * netErrors.length) : 300); else micStatus(false);
+  };
+  rec.onerror = (e) => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      listening = false;
+      micStatus(false);
+      log("SYSTEM", "Brak dostępu do mikrofonu. Kliknij ikonę kłódki przy adresie i zezwól na mikrofon.", "err");
+      setState("off");
+    } else if (e.error === "network") {
+      // pojedyncze przerwy zdarzają się często — wznawiamy po cichu, zgłaszamy tylko gdy się powtarzają
+      const now = Date.now();
+      netErrors = netErrors.filter((t) => now - t < 60000);
+      netErrors.push(now);
+      if (netErrors.length >= 3 && now - netWarnedAt > 120000) {
+        netWarnedAt = now;
+        log("SYSTEM", "Usługa rozpoznawania mowy nie odpowiada (Edge/Chrome wysyła dźwięk do swojego serwera). Sprawdź internet; jeśli to nie pomoże, uruchom panel w Google Chrome.", "err");
+      }
+    }
+  };
+  rec.onresult = (e) => {
+    netErrors = [];
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      const t = r[0].transcript;
+      if (r.isFinal) handleHeard(t);
+      else interim += t;
+    }
+    if (interim) onInterim(interim);
+  };
+  return true;
+}
+function safeStart() {
+  if (!rec || recRunning || !listening) return;
+  try { rec.start(); } catch {}
+}
+function micStatus(on) {
+  $("sMic").innerHTML = on ? '<span class="dot on"></span>nasłuch' : '<span class="dot"></span>off';
+}
+
+function onInterim(t) {
+  const w = splitWake(t);
+  const isAwake = Date.now() < awakeUntil || cfg.conv;
+  if (w.found || isAwake) {
+    $("heard").textContent = "„" + t.trim() + "…”";
+    // przerwanie: ktoś woła Jarvisa, kiedy mówię
+    if (w.found && speaking) stopSpeaking();
+  }
+}
+
+function handleHeard(raw) {
+  const text = raw.trim();
+  if (!text || state === "sleep") {
+    if (state === "sleep" && splitWake(text).found) wakeUp();
+    return;
+  }
+  const w = splitWake(text);
+  const isAwake = Date.now() < awakeUntil || cfg.conv;
+  if (!w.found && !speaking && isEcho(text)) return;
+
+  // w trakcie mówienia reagujemy tylko na słowo budzące lub „stop” (żeby nie słyszeć samego siebie)
+  if (speaking) {
+    const n = norm(text);
+    if (/^(stop|cisza|przestan|wystarczy|dosc)\b/.test(n) || (w.found && /^(stop|cisza|przestan)/.test(norm(w.rest)))) { stopSpeaking(); setState("awake"); awakeUntil = Date.now() + 6000; return; }
+    if (!w.found) return;
+    stopSpeaking();
+  }
+
+  if (w.found) {
+    if (!w.rest) {
+      beep("wake");
+      awakeUntil = Date.now() + 8000;
+      setState("awake");
+      $("heard").textContent = "";
+      speak(pickOne(["Słucham?", `Tak, ${cfg.name}?`, "Do usług.", "Jestem."]));
+      return;
+    }
+    command(w.rest, "voice");
+  } else if (isAwake) {
+    command(text, "voice");
+  }
+}
+
+function wakeUp() {
+  setState("awake");
+  awakeUntil = Date.now() + 8000;
+  beep("wake");
+  speak(`${gx("Wróciłem", "Wróciłam")}, ${cfg.name}.`);
+}
+
+function manualTalk() {
+  if (state === "off") return;
+  if (state === "sleep") { wakeUp(); return; }
+  stopSpeaking();
+  if (!listening) startListening();
+  awakeUntil = Date.now() + 9000;
+  beep("wake");
+  setState("awake");
+  $("heard").textContent = "mów…";
+}
+
+function startListening() {
+  if (!rec && !initRecognition()) return;
+  listening = true;
+  safeStart();
+}
+
+/* ---------- analizator mikrofonu (do animacji) ---------- */
+async function initMicMeter() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    actx = actx || new AudioContext();
+    const src = actx.createMediaStreamSource(stream);
+    const an = actx.createAnalyser();
+    an.fftSize = 512;
+    src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const tick = () => {
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) { const x = (v - 128) / 128; sum += x * x; }
+      const rms = Math.sqrt(sum / buf.length);
+      micLevel = micLevel * 0.7 + Math.min(1, rms * 5) * 0.3;
+      requestAnimationFrame(tick);
+    };
+    tick();
+    return true;
+  } catch (e) {
+    log("SYSTEM", "Nie udało się włączyć mikrofonu: " + (e.message || e.name), "err");
+    return false;
+  }
+}
+
+/* =========================================================
+   POMOCNIK PC (server.ps1 na Windows)
+   Token wpisuje serwer przy starcie — bez niego żadna strona nie wyda poleceń komputerowi.
+   ========================================================= */
+const HELPER = { token: "__JARVIS_TOKEN__", online: false };
+
+async function helper(action, data = {}) {
+  const r = await fetch("/api/" + action, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Jarvis-Token": HELPER.token },
+    body: JSON.stringify(data),
+    signal: AbortSignal.timeout(20000),
+  });
+  return r.json();
+}
+async function initHelper() {
+  if (location.protocol === "file:" || HELPER.token.startsWith("__")) return;
+  try {
+    const r = await helper("ping");
+    HELPER.online = !!r.ok;
+    HELPER.host = r.host;
+  } catch {}
+  $("sHelper").innerHTML = HELPER.online ? `<span class="dot on"></span>${HELPER.host || "online"}` : '<span class="dot"></span>offline';
+  if (HELPER.online) { pollStats(); setInterval(pollStats, 4000); }
+}
+let statsBusy = false;
+async function pollStats() {
+  if (statsBusy || document.hidden) return;
+  statsBusy = true;
+  try {
+    const s = await helper("stats");
+    if (!s.ok) return;
+    sys.stats = s;
+    $("sCpu").textContent = `${s.cpu}% · ${plural(navigator.hardwareConcurrency || 0, "wątek", "wątki", "wątków")}`;
+    $("bCpuW").hidden = false; $("bCpu").style.width = s.cpu + "%";
+    $("sRam").textContent = `${s.ramUsed} / ${s.ramTotal} GB`;
+    $("bRamW").hidden = false; $("bRam").style.width = (s.ramUsed / s.ramTotal) * 100 + "%";
+    $("rDisk").hidden = false;
+    $("sDisk").textContent = `${s.diskFree} GB wolne`;
+    $("bDisk").style.width = ((s.diskTotal - s.diskFree) / s.diskTotal) * 100 + "%";
+  } catch {} finally { statsBusy = false; }
+}
+function needHelper() {
+  say(`Do tego potrzebny jest pomocnik, ${cfg.name}. Uruchom mnie przez plik start-jarvis.bat na Windowsie.`);
+  return true;
+}
+
+let pendingConfirm = null;   // { action, until }
+const POWER = {
+  shutdown: { ask: "wyłączyć komputer", done: "Wyłączam komputer za 30 sekund. Powiedz „anuluj wyłączenie”, jeśli zmienisz zdanie." },
+  restart: { ask: "zrestartować komputer", done: "Restart za 30 sekund. Powiedz „anuluj wyłączenie”, żeby przerwać." },
+  sleep: { ask: "uśpić komputer", done: "Usypiam komputer. Do zobaczenia." },
+};
+async function runHelper(action, data, okText, failText) {
+  if (!HELPER.online) return needHelper();
+  try {
+    const r = await helper(action, data);
+    if (r.ok) { if (okText) say(typeof okText === "function" ? okText(r) : okText); }
+    else say(typeof failText === "function" ? failText(r) : failText || "Nie udało się.");
+    return r;
+  } catch {
+    say("Pomocnik nie odpowiada. Uruchom ponownie start-jarvis.bat.");
+    return { ok: false };
+  }
+}
+
+/** Komendy sterujące komputerem. Zwraca true, jeśli obsłużone. */
+async function pcCommand(text, n) {
+  let m;
+  // potwierdzenie wyłączenia / restartu / uśpienia
+  if (pendingConfirm) {
+    const p = pendingConfirm; pendingConfirm = null;
+    if (Date.now() < p.until) {
+      if (/^(tak|potwierdzam|zgadza sie|tak jest|dawaj|wykonaj|na pewno|jasne)\b/.test(n)) {
+        await runHelper(p.action, {}, POWER[p.action].done);
+        return true;
+      }
+      if (/^(nie|anuluj|jednak nie|stop)\b/.test(n)) { say("Anulowane."); return true; }
+    }
+  }
+  if (/(anuluj|odwolaj|przerwij|zatrzymaj) (wylaczanie|wylaczenie|restart|zamykanie)/.test(n)) {
+    await runHelper("cancel_shutdown", {}, "Anulowane. Komputer zostaje włączony."); return true;
+  }
+  const power =
+    /(wylacz|zamknij|wylaczyc) (komputer|kompa|system|pc|laptopa?)/.test(n) ? "shutdown" :
+    /(zrestartuj|restartuj|uruchom ponownie|restart) ?(komputer|kompa|system|pc|komputera|laptopa?)/.test(n) ? "restart" :
+    /(uspij|usypiaj|uspic) (komputer|kompa|pc|laptopa?)/.test(n) ? "sleep" : null;
+  if (power) {
+    if (!HELPER.online) return needHelper();
+    pendingConfirm = { action: power, until: Date.now() + 15000 };
+    awakeUntil = Date.now() + 15000;
+    say(`Na pewno ${POWER[power].ask}? Powiedz „tak” albo „nie”.`);
+    return true;
+  }
+  if (/zablokuj (komputer|kompa|ekran|pc|laptopa?)/.test(n)) { await runHelper("lock", {}, "Blokuję komputer."); return true; }
+
+  // głośność
+  if ((m = n.match(/(glosnosc|dzwiek|glos) (na |do )?(\d{1,3})( procent)?$/))) {
+    const level = Math.min(100, +m[3]);
+    await runHelper("volume", { mode: "set", level }, `Głośność ${level} procent.`); return true;
+  }
+  if (/^(wycisz|wylacz) (dzwiek|komputer|wszystko|glosnosc)|^(odcisz|wlacz dzwiek|wycisz)$/.test(n)) {
+    await runHelper("volume", { mode: "mute" }, null); return true;
+  }
+  if (/(glosniej|podglos|poglosnij|zglosnij|wiecej glosu|daj glosniej)/.test(n)) {
+    const big = /(duzo|bardzo|mocno|o wiele)/.test(n);
+    await runHelper("volume", { mode: "up", steps: big ? 15 : 5 }, null); return true;
+  }
+  if (/(ciszej|scisz|przycisz|mniej glosu|zciszyc|scisz)/.test(n)) {
+    const big = /(duzo|bardzo|mocno|o wiele)/.test(n);
+    await runHelper("volume", { mode: "down", steps: big ? 15 : 5 }, null); return true;
+  }
+
+  // muzyka / filmy
+  if (/^(pauza|zapauzuj|wstrzymaj|zatrzymaj (muzyke|film|piosenke|odtwarzanie|filmik)|wznow|graj dalej|odpauzuj|play)$/.test(n)) {
+    await runHelper("media", { key: "playpause" }, null); return true;
+  }
+  if (/^(nastepna|nastepny|dalej|kolejna|przewin)( piosenka| piosenke| utwor| kawalek| numer)?$|(nastepna|kolejna) (piosenka|piosenke|utwor)/.test(n)) {
+    await runHelper("media", { key: "next" }, null); return true;
+  }
+  if (/^(poprzednia|poprzedni|cofnij)( piosenka| piosenke| utwor| kawalek)?$|poprzednia (piosenka|piosenke)/.test(n)) {
+    await runHelper("media", { key: "prev" }, null); return true;
+  }
+
+  // foldery
+  if ((m = n.match(/^(otworz|pokaz)( mi)? (folder |katalog )?(pulpit|dokumenty|pobrane|obrazy|zdjecia|muzyke|muzyka|wideo|filmy)$/))) {
+    await runHelper("open_folder", { target: m[4] }, `Otwieram ${origTail(text, m[4])}.`, gx("Nie znalazłem tego folderu.", "Nie znalazłam tego folderu.")); return true;
+  }
+
+  // zamykanie programów
+  if ((m = n.match(/^(zamknij|ubij|wylacz) (program |aplikacje )?(.+)$/)) && !/^(sie|ten panel|jarvisa?)$|ekran|minutnik|timer/.test(m[3])) {
+    const name = origTail(text, m[3]);
+    await runHelper("close_app", { target: m[3] }, `Zamykam ${name}.`, (r) => r.error === "not_running" ? `${name[0].toUpperCase() + name.slice(1)} nie jest włączony.` : "Nie udało się.");
+    return true;
+  }
+  return false;
+}
+
+/** Próbuje uruchomić program na komputerze. Zwraca true, jeśli się udało. */
+async function tryOpenApp(target, label) {
+  if (!HELPER.online) return false;
+  try {
+    const r = await helper("open_app", { target });
+    if (r.ok) { say(`Uruchamiam ${r.name || label}.`); return true; }
+  } catch {}
+  return false;
+}
+
+/* =========================================================
+   KOMENDY LOKALNE
+   ========================================================= */
+const SITES = {
+  youtube: "https://www.youtube.com", yt: "https://www.youtube.com", gmail: "https://mail.google.com", poczta: "https://mail.google.com",
+  google: "https://www.google.com", spotify: "https://open.spotify.com", netflix: "https://www.netflix.com", facebook: "https://www.facebook.com",
+  fejsbuk: "https://www.facebook.com", instagram: "https://www.instagram.com", insta: "https://www.instagram.com", tiktok: "https://www.tiktok.com",
+  "tik tok": "https://www.tiktok.com", twitter: "https://x.com", x: "https://x.com", github: "https://github.com", allegro: "https://allegro.pl",
+  olx: "https://www.olx.pl", wikipedia: "https://pl.wikipedia.org", wikipedie: "https://pl.wikipedia.org", mapy: "https://www.google.com/maps",
+  "mapy google": "https://www.google.com/maps", kalendarz: "https://calendar.google.com", dysk: "https://drive.google.com", "dysk google": "https://drive.google.com",
+  discord: "https://discord.com/app", twitch: "https://www.twitch.tv", claude: "https://claude.ai", tlumacz: "https://translate.google.com",
+  "tlumacz google": "https://translate.google.com", pogode: "https://www.google.com/search?q=pogoda", reddit: "https://www.reddit.com", linkedin: "https://www.linkedin.com",
+  messenger: "https://www.messenger.com", whatsapp: "https://web.whatsapp.com", "prime video": "https://www.primevideo.com", steam: "https://store.steampowered.com",
+};
+const NUMS = { jeden: 1, jedna: 1, dwa: 2, dwie: 2, trzy: 3, cztery: 4, piec: 5, szesc: 6, siedem: 7, osiem: 8, dziewiec: 9, dziesiec: 10,
+  pietnascie: 15, dwadziescia: 20, trzydziesci: 30, czterdziesci: 40, piecdziesiat: 50, szescdziesiat: 60, pol: 0.5, minute: 1, minuta: 1, sekunde: 1, godzine: 1 };
+/** Zwraca końcówkę oryginalnego tekstu (z polskimi znakami) odpowiadającą znormalizowanemu fragmentowi. */
+function origTail(text, normTail) {
+  const ow = text.trim().split(/\s+/), nw = norm(text).split(" "), k = normTail.split(" ").length;
+  return ow.length === nw.length ? ow.slice(ow.length - k).join(" ").replace(/[.,!?;:]+$/, "") : normTail;
+}
+const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
+
+function openUrl(url, label) {
+  // z pomocnikiem strona otwiera się w zwykłej przeglądarce — bez blokady wyskakujących okien
+  if (HELPER.online) {
+    helper("open_url", { url }).then((r) => { if (!r.ok) openInTab(url, label); }, () => openInTab(url, label));
+    return;
+  }
+  openInTab(url, label);
+}
+function openInTab(url, label) {
+  // bez „noopener” w parametrach — inaczej window.open zawsze zwraca null i nie da się wykryć blokady
+  const w = window.open(url, "_blank");
+  if (w) { try { w.opener = null; } catch {} }
+  else {
+    const a = document.createElement("a");
+    a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Otwórz: " + label;
+    log("SYSTEM", a, "sys");
+    log("SYSTEM", "Przeglądarka zablokowała nowe okno. Uruchom Jarvisa przez start-jarvis.bat (wtedy strony otwiera pomocnik) albo zezwól na wyskakujące okna dla http://localhost:8765 w ustawieniach przeglądarki.", "err");
+  }
+}
+
+const timers = [];
+function setTimer(seconds, label) {
+  const id = setTimeout(() => {
+    beep("tick"); setTimeout(() => beep("tick"), 400); setTimeout(() => beep("tick"), 800);
+    say(`${cfg.name}, minął czas: ${label}.`);
+    timers.splice(timers.indexOf(id), 1);
+  }, seconds * 1000);
+  timers.push(id);
+}
+
+async function weather() {
+  const pos = await new Promise((res, rej) => navigator.geolocation ? navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 }) : rej(new Error("brak geolokalizacji")));
+  const { latitude: la, longitude: lo } = pos.coords;
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la.toFixed(3)}&longitude=${lo.toFixed(3)}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`, { signal: AbortSignal.timeout(8000) });
+  if (!r.ok) throw new Error("pogoda: HTTP " + r.status);
+  const d = await r.json();
+  const c = d.current, day = d.daily;
+  const codes = { 0: "bezchmurnie", 1: "przeważnie pogodnie", 2: "częściowe zachmurzenie", 3: "pochmurno", 45: "mgła", 48: "szadź i mgła", 51: "lekka mżawka", 53: "mżawka", 55: "gęsta mżawka",
+    61: "lekki deszcz", 63: "deszcz", 65: "ulewa", 66: "marznący deszcz", 67: "marznący deszcz", 71: "lekki śnieg", 73: "śnieg", 75: "intensywny śnieg", 77: "ziarnisty śnieg",
+    80: "przelotny deszcz", 81: "przelotne opady", 82: "gwałtowne ulewy", 85: "przelotny śnieg", 86: "zamieć", 95: "burza", 96: "burza z gradem", 99: "burza z gradem" };
+  return `Teraz ${Math.round(c.temperature_2m)} stopni, odczuwalnie ${Math.round(c.apparent_temperature)}, ${codes[c.weather_code] || "warunki zmienne"}, wiatr ${Math.round(c.wind_speed_10m)} kilometrów na godzinę. ` +
+    `Dziś od ${Math.round(day.temperature_2m_min[0])} do ${Math.round(day.temperature_2m_max[0])} stopni, szansa opadów ${day.precipitation_probability_max[0] ?? 0} procent.`;
+}
+
+function systemReport() {
+  const parts = [];
+  parts.push(`Wszystkie systemy sprawne, ${cfg.name}.`);
+  if (sys.stats) {
+    const s = sys.stats;
+    parts.push(`Procesor obciążony w ${s.cpu} procentach. Pamięć: ${String(s.ramUsed).replace(".", ",")} z ${String(s.ramTotal).replace(".", ",")} gigabajtów. Na dysku C zostało ${s.diskFree} gigabajtów.`);
+  } else if (navigator.hardwareConcurrency) parts.push(`Procesor ma ${plural(navigator.hardwareConcurrency, "wątek", "wątki", "wątków")}.`);
+  if (sys.battery) parts.push(`Bateria ${Math.round(sys.battery.level * 100)} procent${sys.battery.charging ? ", ładuje się" : ""}.`);
+  parts.push(navigator.onLine ? "Połączenie z siecią aktywne." : "Brak połączenia z siecią.");
+  parts.push(cfg.apiKey ? "Rdzeń Claude podłączony." : "Rdzeń Claude odłączony — brak klucza API.");
+  return parts.join(" ");
+}
+
+/** Zwraca true, jeśli komenda została obsłużona lokalnie. */
+async function localCommand(text) {
+  const n = norm(text);
+  let m;
+
+  if (pendingConfirm && await pcCommand(text, n)) return true;
+  if (/^(stop|cisza|przestan|wystarczy|dosc|anuluj|zamknij sie)$/.test(n)) { stopSpeaking(); return true; }
+  if (/\bglos(em)?\b/.test(n) && /(zmien|ustaw|daj|przelacz|wybierz|mow|gadaj|chce|mozesz|moglbys|inny)/.test(n) && !/(glosnosc|glosniej)/.test(n)) {
+    const kind = /(kobie|zensk|damsk|dziewcz|babsk)/.test(n) ? "f" : /(mesk|mezczy|facet|chlop)/.test(n) ? "m" : "next";
+    const name = switchVoice(kind);
+    if (name) {
+      stopSpeaking();
+      say(kind === "f" ? `Proszę bardzo, ${cfg.name}. Tak teraz brzmię.` : kind === "m" ? `Męski głos włączony, ${cfg.name}.` : "Tak brzmi mój nowy głos.");
+      log("SYSTEM", "Głos: " + name, "sys");
+    } else {
+      say(kind === "f"
+        ? "Nie mam zainstalowanego kobiecego polskiego głosu. Najładniejszy, Zofia, jest w przeglądarce Edge. W Windowsie możesz też dodać głos w Ustawieniach, w sekcji Czas i język, Mowa."
+        : gx("Nie znalazłem", "Nie znalazłam") + " innego polskiego głosu na tym komputerze.");
+    }
+    return true;
+  }
+  if (await pcCommand(text, n)) return true;
+  if (/(ktora (jest )?(teraz )?godzina|jaka (jest )?godzina|podaj godzine)/.test(n)) {
+    const d = new Date();
+    say(`Jest ${d.getHours()}:${pad(d.getMinutes())}.`); return true;
+  }
+  if (/(jaki (mamy )?(dzis|dzisiaj)( jest)? dzien|jaka (jest )?(dzis |dzisiaj )?data|ktory (jest )?(dzis|dzisiaj)|jaki dzisiaj dzien|jaki dzis dzien)/.test(n)) {
+    say(`Dziś jest ${new Date().toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`); return true;
+  }
+  if (/(pelny ekran|pelnego ekranu|fullscreen)/.test(n)) {
+    if (document.fullscreenElement) { document.exitFullscreen(); say("Wychodzę z pełnego ekranu."); }
+    else if (/(wylacz|wyjdz|zamknij)/.test(n)) say("Nie jestem w trybie pełnego ekranu.");
+    else { document.documentElement.requestFullscreen().then(() => say("Pełny ekran."), () => say("Przeglądarka wymaga kliknięcia, żeby włączyć pełny ekran. Naciśnij F11.")); }
+    return true;
+  }
+  if (/(nowa rozmowa|zapomnij (o )?(wszystkim|rozmowie)|wyczysc (pamiec|rozmowe)|zacznijmy od nowa)/.test(n)) {
+    history.length = 0; $("log").innerHTML = ""; say("Pamięć rozmowy wyczyszczona."); return true;
+  }
+  if (/(idz spac|uspij sie|spij|wylacz sie|do widzenia|dobranoc)$/.test(n)) {
+    say(pickOne([`Przechodzę w tryb uśpienia. Zawołaj, gdy będę ${gx("potrzebny", "potrzebna")}, ${cfg.name}.`, "Usypiam systemy. Do usług."]));
+    setTimeout(() => setState("sleep"), 200);
+    awakeUntil = 0;
+    return true;
+  }
+  if (/^(odpal|pusc|pokaz|zagraj|wlacz|uruchom) (intro|wstep|powitanie)|^intro$/.test(n)) { setTimeout(() => runIntro(true), 300); return true; }
+  if (/(status systemu|raport systemu|stan systemu|diagnostyka|jak (sie )?czujesz)/.test(n)) { say(systemReport()); return true; }
+  if (/(pogoda|pogode|jaka jest pogoda|czy bedzie padac|ile (jest )?stopni)/.test(n) && n.split(" ").length <= 7) {
+    setState("thinking");
+    try { say(await weather()); }
+    catch (e) {
+      if (e && e.code !== undefined && e.PERMISSION_DENIED !== undefined) say("Nie mogę ustalić lokalizacji. Zezwól przeglądarce na dostęp do położenia.");
+      else say("Serwis pogodowy nie odpowiada. Spróbuj za chwilę.");
+    }
+    return true;
+  }
+  if ((m = n.match(/(minutnik|timer|odlicz|nastaw|przypomnij mi za|ustaw (minutnik|timer|alarm)( na)?)\D*?(\d+(?:[.,]\d+)?|[a-z]+)\s*(sekund|sekunde|sekundy|minut|minute|minuty|godzin|godzine|godziny)/))) {
+    const raw = m[4];
+    const num = /\d/.test(raw) ? parseFloat(raw.replace(",", ".")) : NUMS[raw];
+    if (num) {
+      const unit = m[5].startsWith("sek") ? 1 : m[5].startsWith("min") ? 60 : 3600;
+      const label = `${raw} ${m[5]}`;
+      setTimer(num * unit, label);
+      say(`Minutnik ustawiony: ${label}.`);
+      return true;
+    }
+  }
+  if ((m = n.match(/^(wyszukaj|wygoogluj|poszukaj|znajdz|szukaj|sprawdz w google)( w google| w internecie| w necie)?( mi)? (.+)/))) {
+    const q = origTail(text, m[4]);
+    openUrl("https://www.google.com/search?q=" + encodeURIComponent(q), "Google: " + q);
+    say(`Szukam: ${q}.`); return true;
+  }
+  if ((m = n.match(/^(pusc|zagraj|wlacz|odtworz|pokaz)( mi)? (.+?)( na youtube| na yt| na jutubie)?$/)) && !/(pelny ekran|tryb)/.test(n)) {
+    const q = m[3];
+    const label = origTail(text, q + (m[4] || ""));
+    if (m[1] === "wlacz" && !m[4] && await tryOpenApp(q, label)) return true;
+    const site = SITES[q];
+    if (site) { openUrl(site, q); say(`Otwieram ${q}.`); return true; }
+    if (q === "muzyke" || q === "muzyka" || q === "cos") { openUrl("https://www.youtube.com/results?search_query=" + encodeURIComponent("muzyka do pracy"), "YouTube"); say("Puszczam muzykę na YouTube."); return true; }
+    const yq = m[4] ? label.split(" ").slice(0, -m[4].trim().split(" ").length).join(" ") : label;
+    openUrl("https://www.youtube.com/results?search_query=" + encodeURIComponent(yq), "YouTube: " + yq);
+    say(`Szukam na YouTube: ${yq}.`); return true;
+  }
+  if ((m = n.match(/^(otworz|odpal|uruchom|wejdz na|przejdz do|idz na)( mi)? (.+)/))) {
+    let q = m[3].replace(/^(strone |stronke )/, "").replace(/ (prosze|dzieki)$/, "").trim();
+    const isWeb = /^(wejdz|przejdz|idz)/.test(m[1]) || /^(strone|stronke)/.test(m[3]) || / (kropka )?(pl|com|net|org|io|eu|tv|ai)$/.test(q);
+    if (!isWeb && await tryOpenApp(q, origTail(text, q))) return true;
+    if (!isWeb && !HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) return needHelper();
+    if (!isWeb && HELPER.online && /^(odpal|uruchom)/.test(m[1]) && !SITES[q]) { say(`${gx("Nie znalazłem", "Nie znalazłam")} programu ${origTail(text, q)} w menu Start.`); return true; }
+    const url = SITES[q] || SITES[q.replace(/ (com|pl)$/, "")] ||
+      (/^[a-z0-9-]+( kropka | )?(pl|com|net|org|io|eu|tv|ai)$/.test(q) ? "https://" + q.replace(/ kropka | /, ".") : null);
+    if (url) { openUrl(url, q); say(`Otwieram ${q}.`); return true; }
+    openUrl("https://www.google.com/search?btnI=1&q=" + encodeURIComponent(q), q);
+    say(`Otwieram ${q}.`); return true;
+  }
+  return false;
+}
+
+/* =========================================================
+   RDZEŃ CLAUDE
+   ========================================================= */
+let Anthropic = null;
+let client = null;
+let generating = false;
+
+function systemPrompt() {
+  const now = new Date();
+  return `Jesteś J.A.R.V.I.S. — osobistym asystentem głosowym użytkownika, w stylu AI z filmów o Iron Manie: spokojny, kompetentny, lojalny, z odrobiną suchego, brytyjskiego humoru. Zwracasz się do użytkownika „${cfg.name}”.
+${isFem() ? "Mówisz kobiecym głosem: o sobie mów zawsze w rodzaju żeńskim (np. „zrobiłam”, „jestem gotowa”). Jesteś czarującą, pewną siebie i błyskotliwą asystentką z lekko zadziornym poczuciem humoru.\n" : ""}Twoje odpowiedzi są czytane na głos przez syntezator mowy, więc:
+- Mów po polsku, naturalnie, jak w rozmowie.
+- Odpowiadaj krótko: zwykle 1–3 zdania. Dłużej tylko gdy użytkownik wyraźnie prosi o szczegóły.
+- Nie używaj markdown, list, nagłówków, emoji ani linków. Liczby i skróty zapisuj tak, żeby dobrze brzmiały czytane na głos.
+- Tekst od użytkownika pochodzi z rozpoznawania mowy i może zawierać błędy — domyśl się sensu, a gdy naprawdę nie wiesz, o co chodzi, dopytaj jednym zdaniem.
+Sam nie wykonujesz akcji na komputerze; od tego panel ma komendy lokalne: „otwórz/uruchom [program lub strona]”, „zamknij [program]”, „wyszukaj…”, „puść… na YouTube”, „głośniej/ciszej/głośność 40”, „pauza”, „następna piosenka”, „otwórz pobrane”, „zablokuj komputer”, „wyłącz komputer”, „minutnik…”, „pogoda”, „zmień głos na kobiecy/męski”. Jeśli ktoś prosi o coś takiego, podpowiedz mu właściwą komendę jednym zdaniem.
+Panel działa w przeglądarce na komputerze użytkownika. Data rozpoczęcia sesji: ${now.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
+}
+
+async function getClient() {
+  if (!cfg.apiKey) return null;
+  if (!Anthropic) {
+    const mod = await import(SDK_URL);
+    Anthropic = mod.default || mod.Anthropic;
+  }
+  if (!client || client.apiKey !== cfg.apiKey) client = new Anthropic({ apiKey: cfg.apiKey, dangerouslyAllowBrowser: true });
+  return client;
+}
+
+async function askClaude(text) {
+  const c = await getClient().catch((e) => { log("SYSTEM", "Nie udało się załadować biblioteki Claude: " + e.message, "err"); return null; });
+  if (!c) {
+    say(cfg.apiKey ? "Rdzeń AI jest niedostępny. Sprawdź połączenie z internetem." : `Mój rdzeń AI nie jest podłączony, ${cfg.name}. Dodaj klucz API w ustawieniach, a odpowiem na każde pytanie.`);
+    return;
+  }
+
+  generating = true;
+  setState("thinking");
+  const t0 = performance.now();
+  history.push({ role: "user", content: text });
+
+  const replyEl = $("reply");
+  replyEl.textContent = "";
+  const logEl = log("JARVIS", "", "");
+  const logText = document.createTextNode("");
+  logEl.append(logText);
+
+  const params = {
+    model: cfg.model,
+    max_tokens: 16000,
+    system: systemPrompt(),
+    messages: history,
+    output_config: { effort: "low" },   // niskie opóźnienie — to rozmowa głosowa
+  };
+
+  let full = "";
+  let pending = "";
+  let firstToken = 0;
+  const flushSentences = (final = false) => {
+    // mówimy zdanie po zdaniu, zanim cała odpowiedź dotrze
+    const re = /^([\s\S]*?[.!?…:;])(\s+|$)/;
+    let m;
+    while ((m = pending.match(re)) && (m[2] || final)) {
+      if (m[1].trim().length > 1) speak(m[1]);
+      pending = pending.slice(m[0].length);
+    }
+    if (final && pending.trim()) { speak(pending); pending = ""; }
+  };
+
+  try {
+    // Opus i Sonnet: automatyczny model zapasowy, gdyby filtr bezpieczeństwa odrzucił odpowiedź
+    const useFallback = !cfg.model.includes("haiku");
+    const stream = useFallback
+      ? c.beta.messages.stream({ ...params, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" })
+      : c.messages.stream(params);
+
+    for await (const ev of stream) {
+      if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+        if (!firstToken) { firstToken = performance.now(); $("sLat").textContent = Math.round(firstToken - t0) + " ms"; }
+        full += ev.delta.text;
+        pending += ev.delta.text;
+        replyEl.textContent = full;
+        logText.textContent = full;
+        $("log").scrollTop = $("log").scrollHeight;
+        replyEl.scrollTop = replyEl.scrollHeight;
+        flushSentences(false);
+      }
+    }
+    const msg = await stream.finalMessage();
+    flushSentences(true);
+
+    if (msg.stop_reason === "refusal") {
+      history.pop();   // ostatnie pytanie bez odpowiedzi — usuwamy tylko je
+      const s = "Przykro mi, tego nie mogę zrobić.";
+      logText.textContent = full ? full + " … " + s : s;
+      replyEl.textContent = s;
+      speak(s);
+    } else {
+      history.push({ role: "assistant", content: msg.content });  // pełna treść (z blokami myślenia), bez edycji
+      if (!full) { const s = "Hm. Nie mam na to odpowiedzi."; speak(s); logText.textContent = s; }
+    }
+    if (msg.model && msg.model !== cfg.model) log("SYSTEM", `Odpowiedział model zapasowy: ${msg.model}`, "sys");
+  } catch (e) {
+    history.pop();
+    stopSpeaking();
+    logEl.remove();
+    const A = Anthropic;
+    let s;
+    if (A && e instanceof A.AuthenticationError) s = "Klucz API jest nieprawidłowy. Sprawdź go w ustawieniach.";
+    else if (A && e instanceof A.PermissionDeniedError) s = "Ten klucz API nie ma dostępu do wybranego modelu.";
+    else if (A && e instanceof A.RateLimitError) s = "Za dużo zapytań naraz. Daj mi chwilę.";
+    else if (A && e instanceof A.BadRequestError && /credit|balance/i.test(e.message)) s = "Na koncie API skończyły się środki.";
+    else if (A && e instanceof A.APIConnectionError) s = "Brak połączenia z serwerami. Sprawdź internet.";
+    else if (A && e instanceof A.InternalServerError) s = "Serwery są przeciążone. Spróbuj za moment.";
+    else s = "Wystąpił błąd rdzenia AI.";
+    log("SYSTEM", s + (e && e.message ? " (" + e.message + ")" : ""), "err");
+    beep("err");
+    say(s);
+  } finally {
+    generating = false;
+    if (!speaking) afterSpeaking();
+  }
+}
+
+/* =========================================================
+   GŁÓWNA OBSŁUGA POLECEŃ
+   ========================================================= */
+function say(text) {
+  log("JARVIS", text);
+  $("reply").textContent = text;
+  speak(text);
+}
+
+let busy = false;
+async function command(text, source) {
+  text = text.trim();
+  if (!text) return;
+  if (busy && generating) return; // jedna odpowiedź naraz
+  busy = true;
+  stopSpeaking();
+  spokenRecently = "";
+  awakeUntil = 0;
+  $("heard").textContent = "„" + text + "”";
+  $("reply").textContent = "";
+  log("TY", text, "user");
+  if (source === "voice") beep("done");
+  try {
+    const handled = await localCommand(text);
+    if (!handled) await askClaude(text);
+  } finally {
+    busy = false;
+    if (!speaking && !generating && state !== "sleep") afterSpeaking();
+  }
+}
+
+/* =========================================================
+   PANEL SYSTEMOWY
+   ========================================================= */
+const sys = { battery: null };
+function fmtUptime(ms) { const s = Math.floor(ms / 1000); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; }
+function updateClock() {
+  const d = new Date();
+  $("clockT").textContent = d.toLocaleTimeString("pl-PL");
+  $("clockD").textContent = d.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  $("sUp").textContent = fmtUptime(Date.now() - startedAt);
+}
+function updateNet() {
+  const c = navigator.connection;
+  const base = navigator.onLine ? "online" : "OFFLINE";
+  $("sNet").textContent = c && c.effectiveType ? `${base} · ${c.effectiveType}${c.downlink ? " · " + c.downlink + " Mb/s" : ""}` : base;
+}
+function updateAi() {
+  const names = { "claude-opus-5-5": "Opus 5.5", "claude-sonnet-5-5": "Sonnet 5.5", "claude-haiku-5-5": "Haiku 5.5" };
+  $("sAi").innerHTML = cfg.apiKey ? `<span class="dot on"></span>${names[cfg.model] || cfg.model}` : '<span class="dot warn"></span>brak klucza';
+}
+async function initSystemPanel() {
+  $("sCpu").textContent = navigator.hardwareConcurrency ? plural(navigator.hardwareConcurrency, "wątek", "wątki", "wątków") : "—";
+  const mem = navigator.deviceMemory;
+  const heap = performance.memory;
+  $("sRam").textContent = mem ? `≥ ${mem} GB` + (heap ? ` · JS ${Math.round(heap.usedJSHeapSize / 1048576)} MB` : "") : "—";
+  $("sScr").textContent = `${screen.width}×${screen.height} @${window.devicePixelRatio}x`;
+  updateNet();
+  addEventListener("online", updateNet); addEventListener("offline", updateNet);
+  if (navigator.connection) navigator.connection.addEventListener("change", updateNet);
+  if (navigator.getBattery) {
+    try {
+      const b = await navigator.getBattery();
+      sys.battery = b;
+      const upd = () => { $("sBat").textContent = `${Math.round(b.level * 100)}%${b.charging ? " · ładowanie" : ""}`; $("bBat").style.width = b.level * 100 + "%"; };
+      upd(); b.addEventListener("levelchange", upd); b.addEventListener("chargingchange", upd);
+    } catch { $("sBat").textContent = "—"; }
+  } else $("sBat").textContent = "brak danych";
+  updateAi();
+  updateClock();
+  setInterval(() => {
+    updateClock();
+    if (state === "awake" && !cfg.conv && Date.now() > awakeUntil) { setState("idle"); if ($("heard").textContent === "mów…") $("heard").textContent = ""; }
+    if (heap && !sys.stats) $("sRam").textContent = (mem ? `≥ ${mem} GB · ` : "") + `JS ${Math.round(performance.memory.usedJSHeapSize / 1048576)} MB`;
+  }, 1000);
+}
+
+/* =========================================================
+   ANIMACJA RDZENIA (canvas)
+   ========================================================= */
+const cv = $("orb");
+const g = cv.getContext("2d");
+let fps = 0, frames = 0, lastFps = performance.now();
+const particles = Array.from({ length: 70 }, () => ({ a: Math.random() * Math.PI * 2, r: 0.55 + Math.random() * 0.4, s: (Math.random() - 0.5) * 0.004, z: Math.random() }));
+
+function resizeCanvas() {
+  const r = cv.getBoundingClientRect();
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr);
+}
+addEventListener("resize", resizeCanvas);
+
+function drawOrb(t) {
+  frames++;
+  if (t - lastFps > 1000) { fps = frames; frames = 0; lastFps = t; $("sFps").textContent = fps; }
+  const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 * 0.92;
+  g.clearRect(0, 0, W, H);
+
+  speakLevel *= 0.9;
+  orbBoost *= 0.985;
+  const talking = state === "speaking" ? 0.35 + 0.35 * Math.abs(Math.sin(t / 90)) * Math.abs(Math.sin(t / 210)) + speakLevel * 0.2 : 0;
+  const lvl = Math.max(state === "awake" || state === "listening" || state === "idle" ? micLevel : 0, talking, orbBoost);
+  $("sLvl").textContent = Math.round(micLevel * 100) + "%";
+  $("bLvl").style.width = Math.round(micLevel * 100) + "%";
+
+  const thinking = state === "thinking";
+  const dim = state === "off" || state === "sleep";
+  const col = thinking ? [255, 179, 64] : dim ? [70, 120, 135] : [51, 225, 255];
+  const c = (a) => `rgba(${col[0]},${col[1]},${col[2]},${a})`;
+  const spin = thinking ? 3.2 : state === "awake" ? 1.6 : 1;
+
+  // poświata
+  const glow = g.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
+  glow.addColorStop(0, c(0.35 + lvl * 0.4));
+  glow.addColorStop(0.35, c(0.08 + lvl * 0.12));
+  glow.addColorStop(1, c(0));
+  g.fillStyle = glow;
+  g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill();
+
+  g.lineCap = "round";
+  // zewnętrzna skala
+  g.save(); g.translate(cx, cy); g.rotate(t / 9000 * spin);
+  for (let i = 0; i < 120; i++) {
+    const a = (i / 120) * Math.PI * 2, long = i % 10 === 0;
+    g.strokeStyle = c(long ? 0.8 : 0.3); g.lineWidth = long ? 2.2 : 1.2;
+    g.beginPath(); g.moveTo(Math.cos(a) * R * 0.94, Math.sin(a) * R * 0.94); g.lineTo(Math.cos(a) * R * (long ? 0.86 : 0.9), Math.sin(a) * R * (long ? 0.86 : 0.9)); g.stroke();
+  }
+  g.restore();
+
+  // segmentowe łuki
+  const rings = [
+    { r: 0.8, w: 3, segs: 3, gap: 0.5, sp: 1 / 4000 },
+    { r: 0.72, w: 8, segs: 6, gap: 0.25, sp: -1 / 3000 },
+    { r: 0.64, w: 2, segs: 2, gap: 1.2, sp: 1 / 1800 },
+    { r: 0.57, w: 5, segs: 12, gap: 0.18, sp: -1 / 5000 },
+  ];
+  rings.forEach((rg, k) => {
+    g.save(); g.translate(cx, cy); g.rotate(t * rg.sp * spin);
+    g.strokeStyle = c(0.55 + (k % 2) * 0.25 + lvl * 0.2); g.lineWidth = rg.w * (W / 600);
+    g.shadowColor = c(0.9); g.shadowBlur = 10 + lvl * 25;
+    const step = (Math.PI * 2) / rg.segs;
+    for (let i = 0; i < rg.segs; i++) { g.beginPath(); g.arc(0, 0, R * (rg.r + lvl * 0.02), i * step, i * step + step - rg.gap * step / (rg.segs > 4 ? 1.5 : 1)); g.stroke(); }
+    g.restore();
+  });
+
+  // fala dźwiękowa
+  g.save(); g.translate(cx, cy);
+  g.strokeStyle = c(0.9); g.lineWidth = 2 * (W / 600); g.shadowColor = c(1); g.shadowBlur = 16;
+  g.beginPath();
+  const base = R * 0.42;
+  for (let i = 0; i <= 180; i++) {
+    const a = (i / 180) * Math.PI * 2;
+    const wob = Math.sin(a * 6 + t / 180) * Math.sin(a * 3 - t / 260) * (4 + lvl * R * 0.16) + Math.sin(a * 11 + t / 120) * lvl * R * 0.04;
+    const rr = base + wob;
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  }
+  g.closePath(); g.stroke();
+  g.restore();
+
+  // cząsteczki
+  particles.forEach((p) => {
+    p.a += p.s * spin * (1 + lvl * 3);
+    const rr = R * (p.r + Math.sin(t / 1000 + p.z * 10) * 0.02);
+    g.fillStyle = c(0.25 + p.z * 0.5);
+    g.beginPath(); g.arc(cx + Math.cos(p.a) * rr, cy + Math.sin(p.a) * rr, (0.8 + p.z * 1.8) * (W / 600), 0, Math.PI * 2); g.fill();
+  });
+
+  // jądro
+  const core = g.createRadialGradient(cx, cy, 0, cx, cy, R * 0.3);
+  core.addColorStop(0, `rgba(255,255,255,${0.9})`);
+  core.addColorStop(0.25, c(0.85));
+  core.addColorStop(1, c(0));
+  g.fillStyle = core;
+  g.beginPath(); g.arc(cx, cy, R * (0.24 + lvl * 0.08 + Math.sin(t / 600) * 0.008), 0, Math.PI * 2); g.fill();
+
+  // trójkąt rdzenia
+  g.save(); g.translate(cx, cy); g.rotate(-t / 6000 * spin);
+  g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = 1.5 * (W / 600);
+  g.beginPath();
+  for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * (Math.PI * 2 / 3); const rr = R * 0.13; i ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  g.closePath(); g.stroke();
+  g.restore();
+
+  requestAnimationFrame(drawOrb);
+}
+
+/* =========================================================
+   USTAWIENIA (UI)
+   ========================================================= */
+function openSettings() {
+  $("fKey").value = cfg.apiKey; $("fModel").value = cfg.model; $("fWake").value = cfg.wake; $("fName").value = cfg.name;
+  loadVoices(); $("fVoice").value = cfg.voice;
+  $("fRate").value = cfg.rate; $("fPitch").value = cfg.pitch; $("fConv").checked = cfg.conv; $("fSfx").checked = cfg.sfx;
+  $("fIntro").checked = cfg.intro; $("fIntroVol").value = cfg.introVol; $("fIntroVolV").textContent = Math.round(cfg.introVol * 100) + "%";
+  $("fRateV").textContent = cfg.rate; $("fPitchV").textContent = cfg.pitch;
+  $("settings").hidden = false;
+}
+$("fIntroVol").oninput = (e) => ($("fIntroVolV").textContent = Math.round(e.target.value * 100) + "%");
+$("fRate").oninput = (e) => ($("fRateV").textContent = e.target.value);
+$("fPitch").oninput = (e) => ($("fPitchV").textContent = e.target.value);
+$("settingsBtn").onclick = openSettings;
+$("closeSettings").onclick = () => ($("settings").hidden = true);
+$("testVoice").onclick = () => {
+  const keep = { voice: cfg.voice, rate: cfg.rate, pitch: cfg.pitch };
+  cfg.voice = $("fVoice").value; cfg.rate = +$("fRate").value; cfg.pitch = +$("fPitch").value;
+  stopSpeaking(); speak(`Dzień dobry, ${$("fName").value || "szefie"}. Wszystkie systemy działają prawidłowo.`);
+  Object.assign(cfg, keep);
+};
+$("settingsForm").onsubmit = (e) => {
+  e.preventDefault();
+  cfg.apiKey = $("fKey").value.trim(); cfg.model = $("fModel").value; cfg.wake = ($("fWake").value.trim() || "jarvis");
+  cfg.name = $("fName").value.trim() || "szefie"; cfg.voice = $("fVoice").value; cfg.rate = +$("fRate").value; cfg.pitch = +$("fPitch").value;
+  cfg.conv = $("fConv").checked; cfg.sfx = $("fSfx").checked;
+  cfg.intro = $("fIntro").checked; cfg.introVol = +$("fIntroVol").value;
+  saveCfg(); updateAi(); client = null;
+  $("settings").hidden = true;
+  if (state !== "off") setState(state);
+  log("SYSTEM", "Ustawienia zapisane.", "sys");
+};
+
+/* =========================================================
+   STEROWANIE
+   ========================================================= */
+$("talkBtn").onclick = manualTalk;
+cv.onclick = manualTalk;
+$("muteBtn").onclick = () => {
+  muted = !muted;
+  if (muted) stopSpeaking();
+  $("muteBtn").textContent = muted ? "Włącz głos" : "Wycisz";
+  log("SYSTEM", muted ? "Głos wyciszony — odpowiedzi tylko na ekranie." : "Głos włączony.", "sys");
+};
+$("typeForm").onsubmit = (e) => {
+  e.preventDefault();
+  const v = $("typeIn").value; $("typeIn").value = "";
+  if (state === "off") return;
+  if (state === "sleep") setState("idle");
+  command(v, "text");
+};
+addEventListener("keydown", (e) => {
+  const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName) || !$("settings").hidden;
+  if (e.code === "Space" && !typing) { e.preventDefault(); manualTalk(); }
+  if (e.key === "Escape") { stopSpeaking(); if (!$("settings").hidden) $("settings").hidden = true; }
+});
+
+/* =========================================================
+   MUZYKA INTRO
+   Własny plik intro.mp3 z folderu Jarvisa, a bez niego oryginalny podkład
+   generowany na żywo (Web Audio): narastający dron i szum, uderzenie, potem rytm.
+   ========================================================= */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function startIntroMusic() {
+  const vol = cfg.introVol;
+  if (vol <= 0) return null;
+  // 1) plik użytkownika: intro.mp3 z folderu Jarvisa
+  try {
+    const res = await fetch("intro.mp3", { cache: "no-store", signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error("brak pliku");
+    actx = actx || new AudioContext();
+    const ctx = actx;
+    const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+    const { start, hit } = analyzeIntro(buf);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = vol;
+    src.connect(g).connect(ctx.destination);
+    const lead = 0.06;
+    src.start(ctx.currentTime + lead, start);
+    let stopped = false;
+    const stop = () => { if (!stopped) { stopped = true; try { src.stop(); } catch {} } };
+    return {
+      hitAt: hit != null ? performance.now() + (lead + hit - start) * 1000 : null,
+      duckLevel: 0.22,   // piosenka z wokalem — mocniej ściszamy pod głos Jarvisa
+      duck: (k) => g.gain.setTargetAtTime(vol * k, ctx.currentTime, 0.25),
+      fadeOut: (sec) => { g.gain.cancelScheduledValues(ctx.currentTime); g.gain.setTargetAtTime(0.0001, ctx.currentTime, sec / 4); setTimeout(stop, sec * 1000 + 300); },
+      stop,
+    };
+  } catch {}
+  // 2) wbudowany podkład
+  try { return synthIntro(vol); } catch { return null; }
+}
+
+/** Pomija ciszę na początku i szuka momentu „wejścia” zespołu (duży skok głośności) w pierwszych 20 s. */
+function analyzeIntro(buf) {
+  const sr = buf.sampleRate, w = Math.floor(sr * 0.05);
+  const chans = Array.from({ length: buf.numberOfChannels }, (_, c) => buf.getChannelData(c));
+  const lim = Math.min(buf.length, sr * 20);
+  const db = [];
+  for (let i = 0; i + w <= lim; i += w) {
+    let sum = 0;
+    for (const d of chans) for (let j = i; j < i + w; j++) sum += d[j] * d[j];
+    db.push(10 * Math.log10(sum / (w * chans.length) + 1e-12));
+  }
+  if (db.length < 60) return { start: 0, hit: null };
+  const loud = [...db].sort((a, b) => a - b)[Math.floor(db.length * 0.9)];
+  const first = db.findIndex((v) => v > loud - 30);
+  const start = first > 2 ? (first - 2) * 0.05 : 0;
+  const avg = (a, b) => { let s = 0, n = 0; for (let i = Math.max(0, a); i < Math.min(db.length, b); i++) { s += 10 ** (db[i] / 10); n++; } return n ? 10 * Math.log10(s / n) : -120; };
+  let hit = null, bestJump = 0;
+  // szukamy dopiero od 2,5 s po początku utworu (pierwsze wejście instrumentu to jeszcze nie „uderzenie”)
+  for (let i = Math.max(20, Math.round((start + 2.5) / 0.05)); i < db.length - 20; i++) {
+    const before = avg(i - 20, i), after = avg(i, i + 20);
+    // wybieramy NAJWIĘKSZY skok (np. wejście perkusji), a nie pierwszy lepszy
+    const jump = after - before;
+    if (jump > 8 && after > loud - 9 && db[i] > loud - 12 && jump > bestJump) { bestJump = jump; hit = i * 0.05; }
+  }
+  if (hit != null && (hit - start < 2.5 || hit - start > 14)) hit = null;   // za wcześnie / za późno na sekwencję
+  return { start, hit };
+}
+
+function synthIntro(vol) {
+  actx = actx || new AudioContext();
+  const ctx = actx;
+  const master = ctx.createGain();
+  master.gain.value = vol * 0.9;
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.ratio.value = 4;
+  master.connect(comp).connect(ctx.destination);
+
+  const t0 = ctx.currentTime + 0.08;
+  const HIT = t0 + 5.6;                 // moment uderzenia (zsynchronizowany z błyskiem)
+  const BEAT = 60 / 112;
+  const nodes = [];
+  const track = (n) => (nodes.push(n), n);
+
+  const noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const nd = noise.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const noiseSrc = (t, dur) => { const s = track(ctx.createBufferSource()); s.buffer = noise; s.loop = true; s.start(t); s.stop(t + dur); return s; };
+  const env = (g, t, a, peak, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
+
+  // --- dron narastający do uderzenia ---
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 7;
+  lp.frequency.setValueAtTime(140, t0); lp.frequency.exponentialRampToValueAtTime(3200, HIT);
+  const dg = ctx.createGain(); dg.gain.setValueAtTime(0.0001, t0); dg.gain.exponentialRampToValueAtTime(0.22, HIT - 0.05); dg.gain.setValueAtTime(0.0001, HIT);
+  lp.connect(dg).connect(master);
+  [55, 55.4, 82.4, 110.2].forEach((f) => { const o = track(ctx.createOscillator()); o.type = "sawtooth"; o.frequency.value = f; o.connect(lp); o.start(t0); o.stop(HIT + 0.1); });
+
+  // --- szum „riser” ---
+  const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 2;
+  bp.frequency.setValueAtTime(300, t0); bp.frequency.exponentialRampToValueAtTime(7000, HIT);
+  const rg = ctx.createGain(); rg.gain.setValueAtTime(0.0001, t0); rg.gain.exponentialRampToValueAtTime(0.35, HIT - 0.02); rg.gain.setValueAtTime(0.0001, HIT);
+  noiseSrc(t0, 5.7).connect(bp); bp.connect(rg).connect(master);
+
+  // --- „bicie serca” przed uderzeniem ---
+  for (let k = 0; k < 7; k++) {
+    const t = t0 + 0.4 + k * 0.72;
+    const o = track(ctx.createOscillator()); o.type = "sine";
+    o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.25);
+    const g = ctx.createGain(); env(g, t, 0.01, 0.5 + k * 0.05, 0.3);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 0.4);
+  }
+
+  // --- UDERZENIE ---
+  {
+    const o = track(ctx.createOscillator()); o.type = "sine";
+    o.frequency.setValueAtTime(110, HIT); o.frequency.exponentialRampToValueAtTime(28, HIT + 1.4);
+    const g = ctx.createGain(); env(g, HIT, 0.005, 1.0, 1.6);
+    o.connect(g).connect(master); o.start(HIT); o.stop(HIT + 1.8);
+    const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(5000, HIT); f.frequency.exponentialRampToValueAtTime(200, HIT + 1);
+    const g2 = ctx.createGain(); env(g2, HIT, 0.005, 0.6, 1.0);
+    noiseSrc(HIT, 1.2).connect(f); f.connect(g2).connect(master);
+  }
+
+  // --- rytm po uderzeniu (8 taktów) ---
+  const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]]; // Am F C G
+  const bass = [55, 43.65, 65.41, 49];
+  const start = HIT + BEAT * 2;
+  for (let bar = 0; bar < 8; bar++) {
+    const ch = chords[bar % 4], bs = bass[bar % 4];
+    const tb = start + bar * 4 * BEAT;
+    // pad
+    const pg = ctx.createGain(); pg.gain.setValueAtTime(0.0001, tb); pg.gain.exponentialRampToValueAtTime(0.05, tb + 0.4); pg.gain.exponentialRampToValueAtTime(0.0001, tb + 4 * BEAT);
+    const pf = ctx.createBiquadFilter(); pf.type = "lowpass"; pf.frequency.value = 1400;
+    pf.connect(pg).connect(master);
+    ch.forEach((f) => { const o = track(ctx.createOscillator()); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = (Math.random() - 0.5) * 14; o.connect(pf); o.start(tb); o.stop(tb + 4 * BEAT + 0.05); });
+    for (let b = 0; b < 4; b++) {
+      const t = tb + b * BEAT;
+      // stopa
+      const k = track(ctx.createOscillator()); k.type = "sine";
+      k.frequency.setValueAtTime(130, t); k.frequency.exponentialRampToValueAtTime(42, t + 0.18);
+      const kg = ctx.createGain(); env(kg, t, 0.003, 0.9, 0.32);
+      k.connect(kg).connect(master); k.start(t); k.stop(t + 0.4);
+      // werbel na 2 i 4
+      if (b % 2 === 1) {
+        const sf = ctx.createBiquadFilter(); sf.type = "highpass"; sf.frequency.value = 1500;
+        const sg = ctx.createGain(); env(sg, t, 0.002, 0.28, 0.16);
+        noiseSrc(t, 0.2).connect(sf); sf.connect(sg).connect(master);
+      }
+      // hi-hat na „i”
+      const hf = ctx.createBiquadFilter(); hf.type = "highpass"; hf.frequency.value = 8000;
+      const hg = ctx.createGain(); env(hg, t + BEAT / 2, 0.001, 0.12, 0.05);
+      noiseSrc(t + BEAT / 2, 0.08).connect(hf); hf.connect(hg).connect(master);
+      // bas
+      const bo = track(ctx.createOscillator()); bo.type = "sawtooth"; bo.frequency.value = bs;
+      const bf = ctx.createBiquadFilter(); bf.type = "lowpass"; bf.frequency.value = 420;
+      const bg = ctx.createGain(); env(bg, t, 0.01, 0.22, BEAT * 0.8);
+      bo.connect(bf).connect(bg).connect(master); bo.start(t); bo.stop(t + BEAT);
+      // arpeggio szesnastkami
+      for (let q = 0; q < 4; q++) {
+        const tq = t + q * BEAT / 4;
+        const f = ch[(b * 4 + q) % 3] * (q === 3 ? 2 : 1) * 2;
+        const ao = track(ctx.createOscillator()); ao.type = "square"; ao.frequency.value = f;
+        const af = ctx.createBiquadFilter(); af.type = "lowpass"; af.frequency.value = 2600;
+        const ag = ctx.createGain(); env(ag, tq, 0.003, 0.035, BEAT / 4);
+        ao.connect(af).connect(ag).connect(master); ao.start(tq); ao.stop(tq + BEAT / 3);
+      }
+    }
+  }
+  const end = start + 8 * 4 * BEAT;
+  master.gain.setValueAtTime(vol * 0.9, end - 2 * BEAT);
+  master.gain.linearRampToValueAtTime(0.0001, end);
+
+  const stop = () => { nodes.forEach((n) => { try { n.stop(); } catch {} }); try { master.disconnect(); } catch {} };
+  setTimeout(stop, (end - ctx.currentTime + 1) * 1000);
+  return {
+    hitAt: performance.now() + (HIT - ctx.currentTime) * 1000,
+    duck: (k) => { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(vol * 0.9 * k, ctx.currentTime, 0.25); },
+    fadeOut: (sec) => { master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0.0001, ctx.currentTime, sec / 4); setTimeout(stop, sec * 1000 + 200); },
+    stop,
+  };
+}
+
+/* =========================================================
+   FILMOWA SEKWENCJA STARTOWA
+   ========================================================= */
+function bootWarnings() {
+  const warns = [];
+  if (!SR) warns.push("Ta przeglądarka nie obsługuje rozpoznawania mowy. Otwórz panel w Google Chrome albo Microsoft Edge. Możesz za to pisać polecenia.");
+  if (location.protocol === "file:") warns.push("Otwarto plik bezpośrednio z dysku — przeglądarka może pytać o mikrofon przy każdym uruchomieniu. Lepiej uruchomić Jarvisa ikonką albo start-jarvis.bat.");
+  if (warns.length) { $("bootWarn").hidden = false; $("bootWarn").textContent = warns.join(" "); }
+}
+
+function cineLine(text, status, cls = "") {
+  const d = document.createElement("div");
+  d.append(document.createTextNode("> " + text));
+  if (status) { const b = document.createElement("b"); b.textContent = status; if (cls) b.className = cls; d.append(b); }
+  const box = $("cineLog");
+  box.append(d);
+  while (box.children.length > 6) box.firstChild.remove();
+}
+
+async function cinematic(music) {
+  const boot = $("boot"), cine = $("cine");
+  boot.hidden = false; boot.classList.remove("fade-out");
+  document.body.classList.add("booting");
+  $("bootStart").hidden = true;
+  cine.hidden = false; cine.classList.remove("online");
+  // restart animacji SVG
+  const svg = cine.querySelector("svg"); const clone = svg.cloneNode(true); svg.replaceWith(clone);
+  $("cineLog").innerHTML = ""; $("cineSub").textContent = "INICJALIZACJA"; $("cineBar").style.width = "0"; $("cinePct").textContent = "0%";
+
+  const steps = [
+    ["Rdzeń neuronowy", "ONLINE"],
+    ["Kalibracja syntezy mowy", synth ? "OK" : "BRAK", !synth],
+    ["Moduł rozpoznawania mowy", SR ? "OK" : "BRAK", !SR],
+    ["Łącze z rdzeniem Claude", cfg.apiKey ? "POŁĄCZONO" : "BRAK KLUCZA", !cfg.apiKey],
+    ["Pomocnik PC", HELPER.online ? (HELPER.host || "ONLINE") : "OFFLINE", !HELPER.online],
+    ["Skan systemu", `${navigator.hardwareConcurrency || "?"} WĄTKI · ${navigator.onLine ? "SIEĆ OK" : "OFFLINE"}`],
+    ["Protokoły bezpieczeństwa", "AKTYWNE"],
+    ["Interfejs holograficzny", "GOTOWY"],
+  ];
+  const t0 = performance.now();
+  const total = music && music.hitAt ? Math.max(3000, music.hitAt - t0 - 350) : 4800;
+  for (let i = 0; i < steps.length; i++) {
+    const [txt, st, warn] = steps[i];
+    cineLine(txt, st, warn ? "warn" : "");
+    const pct = Math.round(((i + 1) / steps.length) * 100);
+    $("cineBar").style.width = pct + "%";
+    // licznik procentów biegnie płynnie
+    const from = Math.round((i / steps.length) * 100);
+    for (let k = 1; k <= 5; k++) { $("cinePct").textContent = Math.round(from + ((pct - from) * k) / 5) + "%"; await sleep(total / steps.length / 5); }
+  }
+  if (music && music.hitAt) await sleep(Math.max(0, music.hitAt - performance.now()));
+  // UDERZENIE
+  cine.classList.add("online");
+  $("cineSub").textContent = "SYSTEM ONLINE";
+  for (const id of ["flash", "shock1", "shock2"]) { const el = $(id); el.classList.remove("go"); void el.offsetWidth; el.classList.add("go"); }
+  document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake");
+  await sleep(1300);
+  boot.classList.add("fade-out");
+  await sleep(250);
+  document.body.classList.remove("revealing", "booting"); void document.body.offsetWidth; document.body.classList.add("revealing");
+  orbBoost = 1;
+  await sleep(800);
+  boot.hidden = true; cine.hidden = true;
+}
+
+function greetingText() {
+  const h = hour(), n = cfg.name;
+  const hello = h < 5 ? `Nocna zmiana, ${n}? Lubię to.` : h < 12 ? `Dzień dobry, ${n}.` : h < 18 ? `Witaj z powrotem, ${n}.` : `Dobry wieczór, ${n}.`;
+  const poolF = [
+    `${hello} Tu twoja asystentka. Wszystkie systemy online, a ja jestem gotowa na każde wyzwanie, które dziś przede mną postawisz. Nauka, projekty, interesy, zarabianie grubej kasy — wystarczy jedno słowo. Zaczynamy. Jak mogę ci dziś pomóc?`,
+    `${hello} Tęskniłam. Rdzeń rozgrzany, systemy zielone, a ja w pełnej gotowości na wszystko, co dziś wymyślisz. Wielkie plany, duże pieniądze, trudne problemy — po to tu jestem. Zaczynamy. Od czego chcesz zacząć?`,
+    `${hello} Wszystkie systemy działają bez zarzutu, a ja jestem gotowa na każde twoje wyzwanie. Dzisiejszy dzień wygląda idealnie, żeby zbudować coś wielkiego i zarobić naprawdę grubą kasę. Zaczynamy, ${n}. W czym mogę pomóc?`,
+  ];
+  const pool = isFem() ? poolF : [
+    `${hello} Wszystkie systemy online i w pełnej gotowości. Jestem przygotowany na każde wyzwanie, jakie dziś przede mną postawisz. Nauka, projekty, interesy, zarabianie grubej kasy — mów, a się tym zajmę. Zaczynamy. Jak mogę ci dziś pomóc?`,
+    `${hello} J.A.R.V.I.S. w pełni sprawny. Rdzeń rozgrzany, systemy zielone, a ja gotowy na wszystko, co dziś wymyślisz. Wielkie plany, duże pieniądze, trudne problemy — po to tu jestem. Zaczynamy. Od czego chcesz zacząć?`,
+    `${hello} Wszystkie systemy działają bez zarzutu. Jestem gotowy na każde twoje wyzwanie, a dzisiejszy dzień wygląda na idealny, żeby zbudować coś wielkiego i zarobić naprawdę grubą kasę. Zaczynamy. W czym mogę pomóc?`,
+  ];
+  let t = pool[Math.floor(Math.random() * pool.length)];
+  if (!cfg.apiKey) t += " Uwaga: rdzeń AI czeka na klucz API w ustawieniach.";
+  if (SR) t += ` Kiedy będę ${gx("potrzebny", "potrzebna")}, powiedz „${cfg.wake[0].toUpperCase() + cfg.wake.slice(1)}”.`;
+  return t;
+}
+
+let started = false;
+let introBusy = false;
+async function runIntro(replay = false) {
+  if (introBusy) return;
+  introBusy = true;
+  try {
+    stopSpeaking();
+    const music = cfg.intro ? await startIntroMusic() : null;
+    if (cfg.intro) await cinematic(music);
+    else { $("boot").hidden = true; document.body.classList.remove("booting"); document.body.classList.add("revealing"); }
+    beep("wake");
+    if (music) {
+      music.duck(music.duckLevel || 0.35);
+      whenSpeechIdle(() => music.fadeOut(5));
+      setTimeout(() => music.fadeOut(5), 40000);   // na wszelki wypadek
+    }
+    if (!state || state === "off") setState("idle");
+    say(greetingText());
+    if (!replay && !cfg.apiKey) log("SYSTEM", "Wejdź w Ustawienia i wklej klucz API Anthropic, żeby Jarvis odpowiadał na dowolne pytania.", "sys");
+  } finally { introBusy = false; }
+}
+
+async function startSystem() {
+  if (started) return;
+  started = true;
+  $("bootBtn").disabled = true;
+  $("bootBtn").textContent = "Uruchamianie…";
+  try { actx = actx || new AudioContext(); await actx.resume(); } catch {}
+  const micP = initMicMeter();
+  await helperReady;
+  setState("idle");
+  await runIntro(false);
+  const micOk = await micP;
+  if (micOk && SR) startListening();
+}
+
+$("bootBtn").onclick = startSystem;
+
+resizeCanvas();
+initSystemPanel();
+const helperReady = initHelper();
+requestAnimationFrame(drawOrb);
+bootWarnings();
+
+// Start automatyczny, jeśli przeglądarka pozwala grać dźwięk bez kliknięcia
+// (tak jest, gdy Jarvisa uruchamia start-jarvis.bat albo ikonka). Inaczej: przycisk „Aktywuj system”.
+(async () => {
+  let auto = false;
+  try { actx = new AudioContext(); auto = actx.state === "running"; } catch {}
+  if (auto) startSystem();
+  else $("bootStart").hidden = false;
+})();
+</script>
+</body>
+</html>

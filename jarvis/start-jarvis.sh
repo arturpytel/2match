@@ -8,10 +8,10 @@ if ! curl -s -o /dev/null "$URL"; then
   sleep 1
 fi
 if [[ "$OSTYPE" == darwin* ]]; then
-  open -na "Google Chrome" --args --app="$URL" 2>/dev/null || open -na "Microsoft Edge" --args --app="$URL" 2>/dev/null || open "$URL"
+  open -na "Google Chrome" --args --app="$URL" --autoplay-policy=no-user-gesture-required 2>/dev/null || open -na "Microsoft Edge" --args --app="$URL" --autoplay-policy=no-user-gesture-required 2>/dev/null || open "$URL"
 else
   for b in google-chrome chromium chromium-browser microsoft-edge; do
-    command -v "$b" >/dev/null && { "$b" --app="$URL" >/dev/null 2>&1 & exit 0; }
+    command -v "$b" >/dev/null && { "$b" --app="$URL" --autoplay-policy=no-user-gesture-required >/dev/null 2>&1 & exit 0; }
   done
   xdg-open "$URL"
 fi

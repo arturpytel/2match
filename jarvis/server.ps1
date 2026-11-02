@@ -25,7 +25,7 @@ $listener.Prefixes.Add("http://localhost:$port/")
 try { $listener.Start() } catch { exit 0 }
 
 $wsh = New-Object -ComObject WScript.Shell
-$types = @{ '.html' = 'text/html; charset=utf-8'; '.js' = 'text/javascript'; '.css' = 'text/css'; '.png' = 'image/png'; '.svg' = 'image/svg+xml'; '.json' = 'application/json'; '.md' = 'text/plain; charset=utf-8' }
+$types = @{ '.html' = 'text/html; charset=utf-8'; '.js' = 'text/javascript'; '.css' = 'text/css'; '.png' = 'image/png'; '.svg' = 'image/svg+xml'; '.json' = 'application/json'; '.md' = 'text/plain; charset=utf-8'; '.mp3' = 'audio/mpeg'; '.m4a' = 'audio/mp4'; '.wav' = 'audio/wav'; '.ogg' = 'audio/ogg'; '.ico' = 'image/x-icon' }
 
 # ---------- pomocnicze ----------
 function Normalize([string]$s) {

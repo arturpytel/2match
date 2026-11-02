@@ -19,6 +19,17 @@ Ten sam plik pyta też, czy Jarvis ma się włączać razem z Windowsem.
 Potem kliknij **Aktywuj system** i w **Ustawieniach** wklej klucz API Anthropic
 (założysz go na https://platform.claude.com/settings/keys; płacisz za zużycie, model Haiku jest najtańszy).
 
+## Filmowe intro
+
+Po uruchomieniu ikonką albo `start-jarvis.bat` Jarvis startuje sam: skan systemów, błysk, fala uderzeniowa, wjazd panelu
+i powitanie głosem na tle muzyki. Muzyka cichnie, kiedy Jarvis mówi, i wycisza się po powitaniu.
+
+- **Własna piosenka:** wrzuć swój plik `intro.mp3` do folderu Jarvisa. Bez niego gra wbudowany, oryginalny podkład.
+- „odpal intro” puszcza całość jeszcze raz.
+- W Ustawieniach można wyłączyć intro i zmienić głośność muzyki.
+- Jarvis działa w osobnym profilu Edge (dzięki temu dźwięk startuje bez klikania), więc za pierwszym razem trzeba
+  jeszcze raz zezwolić na mikrofon i wkleić klucz API w Ustawieniach.
+
 ## Jak mówić
 
 | Mówisz | Co się dzieje |
@@ -30,6 +41,8 @@ Potem kliknij **Aktywuj system** i w **Ustawieniach** wklej klucz API Anthropic
 | „puść lofi na YouTube” | szuka na YouTube |
 | „minutnik 5 minut” | odlicza i przypomina głosem |
 | „pogoda”, „status systemu”, „pełny ekran” | jasne |
+| „zmień głos na kobiecy / męski”, „daj inny głos” | zmienia głos Jarvisa |
+| „odpal intro” | filmowe intro jeszcze raz |
 | „uruchom Discorda”, „włącz Steam”, „otwórz notatnik” | uruchamia program z menu Start *(pomocnik)* |
 | „zamknij Spotify” | zamyka program *(pomocnik)* |
 | „głośniej”, „ciszej”, „głośność 30”, „wycisz dźwięk” | głośność komputera *(pomocnik)* |
